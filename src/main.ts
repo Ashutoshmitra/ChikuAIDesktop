@@ -254,6 +254,58 @@ class ChikuDesktopApp {
         };
       }
     });
+
+    // Fetch user's resumes
+    ipcMain.handle('fetch-resumes', async () => {
+      try {
+        const user = this.store.get('user') as any;
+        if (!user || !user.id) {
+          throw new Error('No authenticated user');
+        }
+
+        // Use the desktop-resumes API endpoint
+        const request = net.request({
+          method: 'GET',
+          url: `https://www.chiku-ai.in/api/desktop-resumes?userId=${user.id}`
+        });
+
+        request.setHeader('Content-Type', 'application/json');
+
+        const response = await new Promise<any>((resolve, reject) => {
+          let responseData = '';
+          
+          request.on('response', (response) => {
+            response.on('data', (chunk) => {
+              responseData += chunk;
+            });
+            
+            response.on('end', () => {
+              try {
+                if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+                  resolve(JSON.parse(responseData));
+                } else {
+                  reject(new Error(`HTTP ${response.statusCode}`));
+                }
+              } catch (error) {
+                reject(error);
+              }
+            });
+          });
+          
+          request.on('error', reject);
+          request.end();
+        });
+
+        return response;
+      } catch (error) {
+        console.error('Error fetching resumes:', error);
+        // Return empty resumes when API fails
+        return {
+          success: false,
+          resumes: []
+        };
+      }
+    });
   }
 
   private handleAuthCallback(url: string) {

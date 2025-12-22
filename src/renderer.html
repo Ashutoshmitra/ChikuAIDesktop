@@ -466,6 +466,282 @@
             margin-right: 8px;
             font-weight: bold;
         }
+
+        /* Resume Selection Screen Styles */
+        #resumeSelectionScreen {
+            display: none;
+            height: 100vh;
+            background: #f9fafb;
+            flex-direction: column;
+        }
+
+        .resume-screen-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .resume-screen-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .resume-screen-content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .resume-description {
+            text-align: center;
+            color: #6b7280;
+            margin-bottom: 32px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .form-section {
+            width: 100%;
+            margin-bottom: 24px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #1f2937;
+            background: white;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #c8894a;
+            box-shadow: 0 0 0 3px rgba(200, 137, 74, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-input {
+            width: 16px;
+            height: 16px;
+            accent-color: #c8894a;
+        }
+
+        .beta-badge {
+            background: #fbbf24;
+            color: #1f2937;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+
+        .checkbox-description {
+            color: #6b7280;
+            font-size: 12px;
+            margin-left: 6px;
+        }
+
+        .resume-list-section {
+            width: 100%;
+            margin-bottom: 24px;
+        }
+
+        .no-resumes-state {
+            text-align: center;
+            padding: 16px 24px;
+        }
+
+        .no-resumes-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .no-resumes-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .no-resumes-subtitle {
+            color: #6b7280;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        .add-resume-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px 24px;
+            background: white;
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .add-resume-btn:hover {
+            border-color: #c8894a;
+            color: #c8894a;
+            background: #fffbf0;
+        }
+
+        .plus-icon {
+            width: 20px;
+            height: 20px;
+            background: #9ca3af;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .add-resume-btn:hover .plus-icon {
+            background: #c8894a;
+        }
+
+        .resume-item {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 12px;
+        }
+
+        .resume-item:hover {
+            border-color: #c8894a;
+            background: #fffbf0;
+        }
+
+        .resume-item.selected {
+            border-color: #c8894a;
+            background: #fffbf0;
+        }
+
+        .resume-radio {
+            margin-right: 12px;
+            accent-color: #c8894a;
+        }
+
+        .resume-info {
+            flex: 1;
+        }
+
+        .resume-filename {
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .resume-details {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .continue-btn {
+            width: 100%;
+            max-width: 400px;
+            padding: 16px 24px;
+            background: #c8894a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .continue-btn:hover {
+            background: #b87c42;
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 48px;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #c8894a;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -543,7 +819,7 @@
                             <div class="info-icon">i</div>
                         </div>
                         <div class="session-options">
-                            <div class="session-option disabled">
+                            <div class="session-option" onclick="showFreeSession()">
                                 Free Session
                             </div>
                             <button class="buy-credits-btn" id="actionBtn" onclick="handleActionButton()">
@@ -564,6 +840,68 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Resume Selection Screen -->
+    <div id="resumeSelectionScreen">
+        <div class="resume-screen-header">
+            <h1 class="resume-screen-title">Select Resume for Session</h1>
+            <button class="close-btn" onclick="closeResumeSelection()">✕</button>
+        </div>
+        
+        <div class="resume-screen-content">
+            <p class="resume-description">
+                Select a resume to help AI provide personalized answers based on your background and experience.
+            </p>
+            
+            <!-- Company and Position Form -->
+            <div class="form-section">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="companyInput">Company</label>
+                        <input type="text" id="companyInput" class="form-input" placeholder="Demo Company" value="Demo Company">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="positionInput">Position</label>
+                        <input type="text" id="positionInput" class="form-input" placeholder="Demo Position" value="Demo Position">
+                    </div>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="autoAnswerCheckbox" class="checkbox-input">
+                    <label for="autoAnswerCheckbox" class="form-label" style="margin-bottom: 0;">
+                        Auto AI Answer
+                        <span class="beta-badge">BETA</span>
+                    </label>
+                    <span class="checkbox-description">(Automatically detect and answer questions)</span>
+                </div>
+            </div>
+            
+            <!-- Resume List Section -->
+            <div class="resume-list-section">
+                <div id="loadingSpinner" class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p style="color: #6b7280; font-size: 14px;">Loading resumes...</p>
+                </div>
+                
+                <div id="resumesList"></div>
+                
+                <div id="noResumesState" class="no-resumes-state" style="display: none;">
+                    <div class="no-resumes-icon">📄</div>
+                    <h3 class="no-resumes-title">No resumes found</h3>
+                    <p class="no-resumes-subtitle">You can continue without selecting a resume.</p>
+                </div>
+                
+                <button class="add-resume-btn" onclick="addNewResume()">
+                    <div class="plus-icon">+</div>
+                    <span>Manage resumes on web dashboard</span>
+                </button>
+            </div>
+            
+            <button class="continue-btn" onclick="continueWithResume()">
+                Continue without Resume
+            </button>
         </div>
     </div>
 
@@ -685,10 +1023,14 @@
             // This will be set based on user's subscription tier
             const actionBtn = document.getElementById('actionBtn');
             if (actionBtn && actionBtn.textContent.includes('Create Session')) {
-                createSession();
+                showResumeSelection();
             } else {
                 buyCredits();
             }
+        }
+
+        function showFreeSession() {
+            showResumeSelection();
         }
 
         function openDashboard() {
@@ -819,6 +1161,166 @@
                 await window.electronAPI.logout();
             } catch (error) {
                 console.error('Logout failed:', error);
+            }
+        }
+
+        // Resume Selection Functions
+        let currentResumes = [];
+        let selectedResumeId = null;
+
+        function showResumeSelection() {
+            // Hide dashboard and show resume selection screen
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('resumeSelectionScreen').style.display = 'flex';
+            
+            // Load resumes when screen opens
+            loadResumes();
+        }
+
+        function closeResumeSelection() {
+            // Hide resume selection screen and show dashboard
+            document.getElementById('resumeSelectionScreen').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'flex';
+            document.getElementById('dashboard').style.flexDirection = 'column';
+        }
+
+        async function loadResumes() {
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const resumesList = document.getElementById('resumesList');
+            const noResumesState = document.getElementById('noResumesState');
+            
+            // Show loading
+            loadingSpinner.style.display = 'block';
+            resumesList.innerHTML = '';
+            noResumesState.style.display = 'none';
+            
+            try {
+                if (window.electronAPI) {
+                    const response = await window.electronAPI.fetchResumes();
+                    console.log('Resumes response:', response);
+                    
+                    if (response.success && response.resumes && response.resumes.length > 0) {
+                        currentResumes = response.resumes;
+                        renderResumesList();
+                    } else {
+                        // Show no resumes state
+                        noResumesState.style.display = 'block';
+                        updateContinueButton();
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading resumes:', error);
+                // Show no resumes state on error
+                noResumesState.style.display = 'block';
+                updateContinueButton();
+            } finally {
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        function renderResumesList() {
+            const resumesList = document.getElementById('resumesList');
+            
+            resumesList.innerHTML = currentResumes.map(resume => {
+                const uploadDate = new Date(resume.uploadedAt).toLocaleDateString();
+                
+                return `
+                    <div class="resume-item ${selectedResumeId === resume._id ? 'selected' : ''}" 
+                         onclick="toggleResumeSelection('${resume._id}')">
+                        <input type="radio" 
+                               name="resumeSelection" 
+                               value="${resume._id}"
+                               ${selectedResumeId === resume._id ? 'checked' : ''}
+                               class="resume-radio">
+                        <div class="resume-info">
+                            <div class="resume-filename">${resume.fileName}</div>
+                            <div class="resume-details">
+                                Uploaded ${uploadDate}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            updateContinueButton();
+        }
+
+        function toggleResumeSelection(resumeId) {
+            // If clicking the same resume, deselect it
+            if (selectedResumeId === resumeId) {
+                selectedResumeId = null;
+            } else {
+                selectedResumeId = resumeId;
+            }
+            
+            // Update visual selection for all items
+            document.querySelectorAll('.resume-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Update radio buttons
+            document.querySelectorAll('input[name="resumeSelection"]').forEach(radio => {
+                radio.checked = radio.value === selectedResumeId;
+            });
+            
+            // Add selected class to current selection
+            if (selectedResumeId) {
+                const selectedItem = document.querySelector(`input[value="${selectedResumeId}"]`).closest('.resume-item');
+                if (selectedItem) {
+                    selectedItem.classList.add('selected');
+                }
+            }
+            
+            updateContinueButton();
+        }
+
+        function updateContinueButton() {
+            const continueBtn = document.querySelector('.continue-btn');
+            if (selectedResumeId) {
+                continueBtn.textContent = 'Continue with Selected Resume';
+            } else {
+                continueBtn.textContent = 'Continue without Resume';
+            }
+        }
+
+        function addNewResume() {
+            // Open web dashboard for resume management
+            if (window.electronAPI) {
+                window.electronAPI.openExternal('https://www.chiku-ai.in/dashboard/resumes');
+            }
+        }
+
+        function continueWithResume() {
+            // Get form data
+            const company = document.getElementById('companyInput').value || 'Demo Company';
+            const position = document.getElementById('positionInput').value || 'Demo Position';
+            const autoAnswer = document.getElementById('autoAnswerCheckbox').checked;
+            
+            // Prepare session data
+            const sessionData = {
+                company: company,
+                position: position,
+                autoAnswer: autoAnswer,
+                resumeId: selectedResumeId
+            };
+            
+            console.log('Creating session with data:', sessionData);
+            
+            // For now, just redirect to the web app with the session data
+            // In a real implementation, you'd create the session via the desktop app
+            if (window.electronAPI) {
+                const baseUrl = 'https://www.chiku-ai.in/dashboard';
+                const params = new URLSearchParams({
+                    company: company,
+                    position: position,
+                    autoAnswer: autoAnswer.toString()
+                });
+                
+                if (selectedResumeId) {
+                    params.append('resumeId', selectedResumeId);
+                }
+                
+                window.electronAPI.openExternal(`${baseUrl}?${params.toString()}`);
             }
         }
     </script>
