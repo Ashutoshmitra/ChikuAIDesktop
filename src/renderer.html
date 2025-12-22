@@ -742,6 +742,155 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* Session Activation Screen Styles */
+        #sessionActivationScreen {
+            display: none;
+            height: 100vh;
+            background: #f9fafb;
+            flex-direction: column;
+        }
+
+        .activation-screen-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .activation-screen-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .activation-screen-content {
+            flex: 1;
+            padding: 32px 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            max-width: 400px;
+            margin: 0 auto;
+            width: 100%;
+            text-align: center;
+        }
+
+        .session-info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+            width: 100%;
+        }
+
+        .session-timer-icon {
+            width: 48px;
+            height: 48px;
+            background: #e5e7eb;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 20px;
+        }
+
+        .session-timer-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .session-warning-text {
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.5;
+            margin-bottom: 24px;
+        }
+
+        .mock-interview-info {
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .mock-interview-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mock-interview-description {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .example-video-link {
+            color: #c8894a;
+            text-decoration: underline;
+            font-size: 13px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .example-video-link:hover {
+            color: #b87c42;
+        }
+
+        .activation-buttons {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .back-btn {
+            flex: 1;
+            padding: 12px 24px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            color: #374151;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #f9fafb;
+            border-color: #9ca3af;
+        }
+
+        .activate-btn {
+            flex: 2;
+            padding: 12px 24px;
+            background: #c8894a;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .activate-btn:hover {
+            background: #b87c42;
+        }
     </style>
 </head>
 <body>
@@ -902,6 +1051,38 @@
             <button class="continue-btn" onclick="continueWithResume()">
                 Continue without Resume
             </button>
+        </div>
+    </div>
+
+    <!-- Session Activation Screen -->
+    <div id="sessionActivationScreen">
+        <div class="activation-screen-header">
+            <h1 class="activation-screen-title">Activate Interview Session</h1>
+            <button class="close-btn" onclick="backToResumeSelection()">✕</button>
+        </div>
+        
+        <div class="activation-screen-content">
+            <div class="session-info-card">
+                <div class="session-timer-icon">⏰</div>
+                <div class="session-timer-text">This is a 10 minute free session.</div>
+                <div class="session-warning-text">
+                    You won't be able to create another free session for the next 15 minutes.
+                </div>
+            </div>
+            
+            <div class="mock-interview-info">
+                <div class="mock-interview-title">
+                    📱 Instead of an interview tab, you can also share a mock interview on YouTube and test ParakeetAI that way.
+                </div>
+                <div class="mock-interview-description">
+                    Example video: <span class="example-video-link" onclick="openExampleVideo()">Mock Interview</span>
+                </div>
+            </div>
+            
+            <div class="activation-buttons">
+                <button class="back-btn" onclick="backToResumeSelection()">Back</button>
+                <button class="activate-btn" onclick="activateSession()">Activate (Free)</button>
+            </div>
         </div>
     </div>
 
@@ -1291,33 +1472,53 @@
         }
 
         function continueWithResume() {
-            // Get form data
+            // Store session data for later use
             const company = document.getElementById('companyInput').value || 'Demo Company';
             const position = document.getElementById('positionInput').value || 'Demo Position';
             const autoAnswer = document.getElementById('autoAnswerCheckbox').checked;
             
-            // Prepare session data
-            const sessionData = {
+            // Store in global variables for the activation screen
+            window.sessionData = {
                 company: company,
                 position: position,
                 autoAnswer: autoAnswer,
                 resumeId: selectedResumeId
             };
             
-            console.log('Creating session with data:', sessionData);
+            // Show session activation screen
+            document.getElementById('resumeSelectionScreen').style.display = 'none';
+            document.getElementById('sessionActivationScreen').style.display = 'flex';
+        }
+
+        // Session Activation Screen Functions
+        function backToResumeSelection() {
+            document.getElementById('sessionActivationScreen').style.display = 'none';
+            document.getElementById('resumeSelectionScreen').style.display = 'flex';
+        }
+
+        function openExampleVideo() {
+            if (window.electronAPI) {
+                window.electronAPI.openExternal('https://youtu.be/mkYYh3ahOZM');
+            }
+        }
+
+        function activateSession() {
+            // Get the session data
+            const sessionData = window.sessionData;
             
-            // For now, just redirect to the web app with the session data
-            // In a real implementation, you'd create the session via the desktop app
+            console.log('Activating session with data:', sessionData);
+            
+            // Create session by redirecting to the web app with the session data
             if (window.electronAPI) {
                 const baseUrl = 'https://www.chiku-ai.in/dashboard';
                 const params = new URLSearchParams({
-                    company: company,
-                    position: position,
-                    autoAnswer: autoAnswer.toString()
+                    company: sessionData.company,
+                    position: sessionData.position,
+                    autoAnswer: sessionData.autoAnswer.toString()
                 });
                 
-                if (selectedResumeId) {
-                    params.append('resumeId', selectedResumeId);
+                if (sessionData.resumeId) {
+                    params.append('resumeId', sessionData.resumeId);
                 }
                 
                 window.electronAPI.openExternal(`${baseUrl}?${params.toString()}`);
