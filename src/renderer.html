@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chiku AI Desktop</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #f9fafb;
+            color: #1f2937;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .login-container {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #loginScreen {
+            display: block;
+        }
+
+        #dashboard {
+            display: none;
+        }
+
+        .container {
+            text-align: center;
+            padding: 40px;
+            max-width: 320px;
+            width: 100%;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            border-radius: 12px;
+            background-image: url('hero_image.png');
+            background-size: cover;
+            background-position: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 40px;
+            font-size: 14px;
+        }
+
+        .login-btn {
+            width: 100%;
+            background: #c8894a;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .login-btn:hover {
+            background: #b87c42;
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-top: 2px solid #c8894a;
+            border-radius: 50%;
+            margin: 0 auto;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .dashboard {
+            height: 100vh;
+            background: #f9fafb;
+            color: #1f2937;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-small {
+            width: 32px;
+            height: 32px;
+            background: url('hero_image.png') center/cover;
+            border-radius: 6px;
+        }
+
+        .app-name {
+            font-weight: 700;
+            font-size: 16px;
+            color: #1f2937;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .credits-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #374151;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .credits-icon {
+            width: 12px;
+            height: 12px;
+            background: #fbbf24;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .credits-icon::after {
+            content: '$';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 8px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .menu-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .menu-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .menu-dropdown {
+            display: none;
+            position: absolute;
+            right: 16px;
+            top: 50px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+            min-width: 200px;
+        }
+
+        .menu-dropdown.show {
+            display: block;
+        }
+
+        .menu-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #374151;
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover {
+            background: #f9fafb;
+        }
+
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 16px;
+            text-align: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            color: #374151;
+        }
+
+        .tab.active {
+            color: #1f2937;
+            border-bottom-color: #c8894a;
+        }
+
+        .tab-content {
+            flex: 1;
+            padding: 20px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .session-type-label {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            color: #374151;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-icon {
+            width: 16px;
+            height: 16px;
+            background: #9ca3af;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .session-options {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .session-option {
+            flex: 1;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .session-option:hover {
+            border-color: #c8894a;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        .session-option.disabled {
+            background: #f3f4f6;
+            color: #9ca3af;
+            cursor: not-allowed;
+            border-color: #d1d5db;
+        }
+
+        .session-option.disabled:hover {
+            border-color: #d1d5db;
+            box-shadow: none;
+        }
+
+        .buy-credits-btn {
+            flex: 1;
+            background: #374151;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .buy-credits-btn:hover {
+            background: #1f2937;
+        }
+
+        .sessions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .session-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+
+        .session-item:hover {
+            border-color: #d1d5db;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        .session-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .session-avatar {
+            width: 32px;
+            height: 32px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .session-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .session-language {
+            background: #374151;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .session-status {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .session-date {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .view-all {
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .view-all-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: underline;
+            transition: color 0.2s;
+        }
+
+        .view-all-btn:hover {
+            color: #374151;
+        }
+
+        .features {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .feature-item::before {
+            content: "✓";
+            color: #c8894a;
+            margin-right: 8px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div class="login-container">
+        <div class="container">
+            <div id="loginScreen">
+                <div class="logo"></div>
+                <h1>Chiku AI Desktop</h1>
+                <p class="subtitle">Your AI Interview Assistant</p>
+                
+                <button class="login-btn" onclick="login()">
+                    Login with Chiku AI
+                </button>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 10px; font-size: 12px; color: #6b7280;">
+                        Opening browser...
+                    </p>
+                </div>
+
+                <div class="features">
+                    <div class="feature-item">Desktop Features</div>
+                    <div class="feature-item">Native Performance</div>
+                    <div class="feature-item">Quick Access</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <!-- Dashboard Screen -->
+        <div id="dashboard" class="dashboard">
+            <div class="header">
+                <div class="header-left">
+                    <div class="logo-small"></div>
+                    <span class="app-name">Chiku AI</span>
+                </div>
+                <div class="header-right">
+                    <div class="credits-badge">
+                        <div class="credits-icon"></div>
+                        <span id="creditsCount">No Credits</span>
+                    </div>
+                    <button class="menu-btn" onclick="toggleMenu()">⋯</button>
+                    <div id="menuDropdown" class="menu-dropdown">
+                        <div class="menu-item" id="userInfo">
+                            <div style="width: 24px; height: 24px; background: #c8894a; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">U</div>
+                            <div>
+                                <div id="userName">User</div>
+                                <div style="font-size: 12px; color: #6b7280;" id="userEmail">user@example.com</div>
+                            </div>
+                        </div>
+                        <div class="menu-item" onclick="openDashboard()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/></svg>
+                            <span>Dashboard</span>
+                        </div>
+                        <div class="menu-item" onclick="logout()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                            <span>Logout</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab('create')">Create</button>
+                    <button class="tab" onclick="switchTab('sessions')">Past Sessions</button>
+                </div>
+
+                <div class="tab-content">
+                    <div id="createTab" class="tab-panel active">
+                        <div class="session-type-label">
+                            Select Session Type
+                            <div class="info-icon">i</div>
+                        </div>
+                        <div class="session-options">
+                            <div class="session-option disabled">
+                                Free Session
+                            </div>
+                            <button class="buy-credits-btn" onclick="buyCredits()">
+                                Buy Credits
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="sessionsTab" class="tab-panel">
+                        <div class="sessions-list" id="sessionsList">
+                            <!-- Sessions will be loaded here -->
+                        </div>
+                        <div class="view-all">
+                            <button class="view-all-btn" onclick="openDashboard()">
+                                View All →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Polyfill for global
+        if (typeof global === 'undefined') {
+            var global = globalThis || window;
+        }
+
+        let isAuthenticated = false;
+        let currentUser = null;
+
+        // Ensure login screen is visible by default
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginContainer = document.querySelector('.login-container');
+            const dashboard = document.getElementById('dashboard');
+            if (loginContainer) loginContainer.style.display = 'flex';
+            if (dashboard) dashboard.style.display = 'none';
+        });
+
+        // Check initial auth status
+        if (window.electronAPI) {
+            window.electronAPI.getAuthStatus().then(({ isAuthenticated: authenticated, user }) => {
+                updateUI(authenticated, user);
+            }).catch(err => {
+                console.error('Failed to get auth status:', err);
+                // Fallback to showing login screen
+                updateUI(false, null);
+            });
+
+            // Listen for auth status changes
+            window.electronAPI.onAuthStatusChanged(({ isAuthenticated: authenticated, user }) => {
+                console.log('Auth status changed:', { authenticated, user });
+                const loading = document.getElementById('loading');
+                if (loading) loading.style.display = 'none'; // Hide loading on any auth change
+                updateUI(authenticated, user);
+            });
+        } else {
+            console.error('electronAPI not available');
+            // Show login screen when electronAPI is not available
+            updateUI(false, null);
+        }
+
+        function updateUI(authenticated, user) {
+            isAuthenticated = authenticated;
+            currentUser = user;
+
+            const loginScreen = document.getElementById('loginScreen');
+            const loginContainer = document.querySelector('.login-container');
+            const dashboard = document.getElementById('dashboard');
+            const loading = document.getElementById('loading');
+
+            // Hide loading
+            if (loading) loading.style.display = 'none';
+
+            if (authenticated) {
+                if (loginContainer) loginContainer.style.display = 'none';
+                if (dashboard) {
+                    dashboard.style.display = 'flex';
+                    dashboard.style.flexDirection = 'column';
+                }
+                
+                // Update user info
+                if (user) {
+                    const userName = document.getElementById('userName');
+                    const userEmail = document.getElementById('userEmail');
+                    if (userName) userName.textContent = user.name || 'User';
+                    if (userEmail) userEmail.textContent = user.email || 'user@example.com';
+                    
+                    // Update user avatar with first letter of name
+                    const userAvatar = document.querySelector('#userInfo div:first-child');
+                    if (userAvatar) {
+                        userAvatar.textContent = (user.name || 'U').charAt(0).toUpperCase();
+                    }
+                }
+                
+                // Load sessions
+                loadSessions();
+            } else {
+                if (loginContainer) loginContainer.style.display = 'flex';
+                if (dashboard) dashboard.style.display = 'none';
+            }
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab panels
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            
+            if (tabName === 'create') {
+                document.getElementById('createTab').classList.add('active');
+            } else if (tabName === 'sessions') {
+                document.getElementById('sessionsTab').classList.add('active');
+            }
+        }
+
+        function toggleMenu() {
+            const dropdown = document.getElementById('menuDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function buyCredits() {
+            if (window.electronAPI) {
+                window.electronAPI.openExternal('https://www.chiku-ai.in/pricing');
+            }
+        }
+
+        function openDashboard() {
+            if (window.electronAPI) {
+                window.electronAPI.openExternal('https://www.chiku-ai.in/dashboard');
+            }
+        }
+
+        function loadSessions() {
+            // Mock session data - this would come from your API in a real implementation
+            const sessions = [
+                {
+                    id: 1,
+                    name: 'A',
+                    language: 'English',
+                    status: 'Expired',
+                    type: 'Free',
+                    date: '19 Dec 2025'
+                },
+                {
+                    id: 2,
+                    name: 'S',
+                    language: 'English', 
+                    status: 'Expired',
+                    type: 'Free',
+                    date: '14 Dec 2025'
+                }
+            ];
+
+            const sessionsList = document.getElementById('sessionsList');
+            sessionsList.innerHTML = sessions.map(session => `
+                <div class="session-item">
+                    <div class="session-info">
+                        <div class="session-avatar">${session.name}</div>
+                        <div class="session-details">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span class="session-language">${session.language}</span>
+                                <span class="session-status">${session.status}</span>
+                                <span class="session-language" style="background: #22c55e;">${session.type}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="session-date">${session.date}</div>
+                </div>
+            `).join('');
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('menuDropdown');
+            const menuBtn = document.querySelector('.menu-btn');
+            
+            if (!menu.contains(event.target) && event.target !== menuBtn) {
+                menu.classList.remove('show');
+            }
+        });
+
+        async function login() {
+            console.log('Login button clicked');
+            const loading = document.getElementById('loading');
+            loading.style.display = 'block';
+
+            try {
+                console.log('Calling electronAPI.login()');
+                await window.electronAPI.login();
+                console.log('Login call completed, waiting for auth callback...');
+                // Note: Don't hide loading here - let the auth callback handle it
+            } catch (error) {
+                console.error('Login failed:', error);
+                loading.style.display = 'none';
+            }
+        }
+
+        async function logout() {
+            try {
+                await window.electronAPI.logout();
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        }
+    </script>
+</body>
+</html>
