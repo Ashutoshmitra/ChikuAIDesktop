@@ -8,7 +8,7 @@ module.exports = {
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: 'renderer.js',
-    publicPath: '/'
+    publicPath: './'
   },
   resolve: {
     fallback: {
@@ -32,13 +32,26 @@ module.exports = {
       {
         test: /\.css$/,
         use: ['style-loader', 'css-loader']
+      },
+      {
+        test: /\.(png|jpg|jpeg|gif|ico|svg)$/,
+        type: 'asset/resource',
+        generator: {
+          filename: '[name][ext]'
+        }
       }
     ]
   },
   plugins: [
     new HtmlWebpackPlugin({
       template: './src/renderer.html',
-      filename: 'index.html'
+      filename: 'index.html',
+      inject: 'body'
+    }),
+    new HtmlWebpackPlugin({
+      template: './src/interview-window.html',
+      filename: 'interview-window.html',
+      inject: false
     }),
     new webpack.DefinePlugin({
       'global': 'globalThis',

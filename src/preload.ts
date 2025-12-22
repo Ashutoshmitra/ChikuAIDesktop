@@ -10,16 +10,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fetchSessions: () => ipcRenderer.invoke('fetch-sessions'),
   fetchUserData: () => ipcRenderer.invoke('fetch-user-data'),
   fetchResumes: () => ipcRenderer.invoke('fetch-resumes'),
-  createInterviewWindow: (sessionData: any) => ipcRenderer.invoke('create-interview-window', sessionData),
-  closeInterviewWindow: () => ipcRenderer.invoke('close-interview-window'),
+  startInterviewSession: (sessionData: any) => ipcRenderer.invoke('start-interview-session', sessionData),
+  endInterviewSession: () => ipcRenderer.invoke('end-interview-session'),
+  setWindowOpacity: (opacity: number) => ipcRenderer.invoke('set-window-opacity', opacity),
   
   // Listen for auth status changes
   onAuthStatusChanged: (callback) => {
     ipcRenderer.on('auth-status-changed', (event, data) => callback(data));
   },
   
-  // Listen for session data (for interview windows)
-  onSessionData: (callback: (data: any) => void) => {
-    ipcRenderer.on('session-data', (event, data) => callback(data));
+  // Listen for mode changes (dashboard/interview)
+  onModeChanged: (callback: (data: any) => void) => {
+    ipcRenderer.on('mode-changed', (event, data) => callback(data));
   }
 });

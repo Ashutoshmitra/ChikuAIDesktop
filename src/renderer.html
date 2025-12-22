@@ -21,6 +21,10 @@
             overflow: hidden;
         }
 
+        body.interview-mode {
+            background: transparent;
+        }
+
         .login-container {
             height: 100vh;
             display: flex;
@@ -892,6 +896,266 @@
             background: #b87c42;
         }
 
+        /* Interview Mode Overlay Styles */
+        .interview-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 9999;
+            flex-direction: column;
+        }
+
+        .interview-header {
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: move;
+            -webkit-app-region: drag;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .interview-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            -webkit-app-region: no-drag;
+        }
+
+        .interview-header-center {
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .interview-header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            -webkit-app-region: no-drag;
+        }
+
+        .interview-control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 90px;
+            text-align: center;
+        }
+
+        .interview-control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .interview-control-btn.active {
+            background: #c8894a;
+            border-color: #c8894a;
+        }
+
+        .stop-session-btn {
+            background: rgba(220, 38, 38, 0.8);
+            border-color: rgba(220, 38, 38, 0.8);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stop-session-btn:hover {
+            background: rgba(220, 38, 38, 1);
+        }
+
+        .session-timer {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            min-width: 80px;
+        }
+
+        .interview-main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .interview-left-panel {
+            width: 50%;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .interview-right-panel {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .interview-panel-header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .interview-panel-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            color: white;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .interview-panel-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .interview-panel-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .interview-panel-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .interview-chat-message {
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .interview-chat-message.ai-message {
+            background: rgba(200, 137, 74, 0.2);
+            border-left: 4px solid #c8894a;
+        }
+
+        .interview-chat-message.system-message {
+            background: rgba(59, 130, 246, 0.2);
+            border-left: 4px solid #3b82f6;
+        }
+
+        .interview-transcript-item {
+            margin-bottom: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .interview-transcript-timestamp {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .interview-transcript-text {
+            color: white;
+            font-size: 14px;
+        }
+
+        /* Transparency Controls */
+        .transparency-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 10000;
+            min-width: 250px;
+            justify-content: center;
+        }
+
+        .transparency-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .transparency-slider {
+            flex: 1;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        .transparency-slider::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #c8894a;
+            border: 2px solid white;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+
+        .transparency-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #b87c42;
+        }
+
+        .transparency-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #c8894a;
+            border: 2px solid white;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .transparency-value {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 30px;
+            text-align: center;
+        }
+
+        .transparency-controls:hover {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+
     </style>
 </head>
 <body>
@@ -1087,6 +1351,64 @@
         </div>
     </div>
 
+    <!-- Interview Mode Overlay -->
+    <div class="interview-overlay" id="interviewOverlay">
+        <div class="interview-header">
+            <div class="interview-header-left">
+                <button class="interview-control-btn" id="aiAnswerBtnInterview" onclick="handleAIAnswerInterview()">AI Answer</button>
+                <button class="interview-control-btn" id="analyzeScreenBtnInterview" onclick="handleAnalyzeScreenInterview()">Analyze Screen</button>
+                <button class="interview-control-btn" id="chatBtnInterview" onclick="toggleChatFocusInterview()">Chat</button>
+            </div>
+            
+            <div class="interview-header-center">Interview Assistant</div>
+            
+            <div class="interview-header-right">
+                <button class="interview-control-btn stop-session-btn" id="stopSessionBtn" onclick="stopInterviewSession()">
+                    <span>■</span> Stop
+                </button>
+                <div class="session-timer" id="sessionTimerInterview">10:00</div>
+            </div>
+        </div>
+
+        <div class="interview-main-content">
+            <!-- Left Panel - AI Answers & Chat -->
+            <div class="interview-left-panel">
+                <div class="interview-panel-header">AI Answers & Chat</div>
+                <div class="interview-panel-content" id="interviewChatMessages">
+                    <div class="interview-chat-message system-message">
+                        <div>Welcome to your interview session! Click "AI Answer" to get personalized responses to interview questions.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Transcript -->
+            <div class="interview-right-panel">
+                <div class="interview-panel-header">Transcript</div>
+                <div class="interview-panel-content" id="interviewTranscriptContent">
+                    <div class="interview-transcript-item">
+                        <div class="interview-transcript-timestamp">Session started...</div>
+                        <div class="interview-transcript-text">Transcript will appear here as you speak or play audio.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transparency Controls -->
+        <div class="transparency-controls">
+            <span class="transparency-label">Opacity</span>
+            <input 
+                type="range" 
+                class="transparency-slider" 
+                id="transparencySlider"
+                min="10" 
+                max="100" 
+                value="95" 
+                step="5"
+                oninput="updateTransparency(this.value)"
+            >
+            <span class="transparency-value" id="transparencyValue">95%</span>
+        </div>
+    </div>
 
     <script>
         // Polyfill for global
@@ -1122,6 +1444,13 @@
                 if (loading) loading.style.display = 'none'; // Hide loading on any auth change
                 updateUI(authenticated, user);
             });
+
+            // Listen for mode changes (dashboard/interview)
+            window.electronAPI.onModeChanged(({ mode, sessionData }) => {
+                console.log('Mode changed:', { mode, sessionData });
+                handleModeChange(mode, sessionData);
+            });
+
         } else {
             console.error('electronAPI not available');
             // Show login screen when electronAPI is not available
@@ -1579,22 +1908,224 @@
             console.log('Activating session with data:', sessionData);
             
             try {
-                // Create single interview window
-                const result = await window.electronAPI.createInterviewWindow(sessionData);
+                // Start interview session (transform window)
+                const result = await window.electronAPI.startInterviewSession(sessionData);
                 
                 if (result.success) {
-                    console.log('Interview window created successfully');
-                    // Hide activation screen, keep dashboard visible underneath
+                    console.log('Interview session started successfully');
+                    // Hide activation screen
                     document.getElementById('sessionActivationScreen').style.display = 'none';
                 } else {
-                    console.error('Failed to create interview window:', result.error);
+                    console.error('Failed to start interview session:', result.error);
                     alert('Failed to start interview session. Please try again.');
                 }
             } catch (error) {
-                console.error('Error creating interview window:', error);
+                console.error('Error starting interview session:', error);
                 alert('Failed to start interview session. Please try again.');
             }
         }
+
+        // Handle mode changes between dashboard and interview
+        function handleModeChange(mode, sessionData) {
+            const interviewOverlay = document.getElementById('interviewOverlay');
+            const loginContainer = document.querySelector('.login-container');
+            const dashboard = document.getElementById('dashboard');
+            const resumeSelectionScreen = document.getElementById('resumeSelectionScreen');
+            const sessionActivationScreen = document.getElementById('sessionActivationScreen');
+
+            if (mode === 'interview') {
+                // Set body class for transparent background
+                document.body.classList.add('interview-mode');
+                
+                // Hide all dashboard elements and show interview overlay
+                if (loginContainer) loginContainer.style.display = 'none';
+                if (dashboard) dashboard.style.display = 'none';
+                if (resumeSelectionScreen) resumeSelectionScreen.style.display = 'none';
+                if (sessionActivationScreen) sessionActivationScreen.style.display = 'none';
+                if (interviewOverlay) {
+                    interviewOverlay.style.display = 'flex';
+                    initializeInterviewSession(sessionData);
+                }
+            } else if (mode === 'dashboard') {
+                // Remove body class for normal background
+                document.body.classList.remove('interview-mode');
+                
+                // Hide interview overlay and show dashboard
+                if (interviewOverlay) interviewOverlay.style.display = 'none';
+                
+                // Show appropriate dashboard screen based on auth status
+                if (isAuthenticated) {
+                    if (dashboard) {
+                        dashboard.style.display = 'flex';
+                        dashboard.style.flexDirection = 'column';
+                    }
+                } else {
+                    if (loginContainer) loginContainer.style.display = 'flex';
+                }
+            }
+        }
+
+        // Interview mode variables
+        let interviewSessionStartTime = null;
+        let interviewSessionTimer = null;
+        let currentInterviewSessionData = null;
+
+        function initializeInterviewSession(sessionData) {
+            currentInterviewSessionData = sessionData;
+            interviewSessionStartTime = new Date();
+            
+            // Start session timer
+            const timerElement = document.getElementById('sessionTimerInterview');
+            interviewSessionTimer = setInterval(() => {
+                if (interviewSessionStartTime) {
+                    const elapsed = Math.floor((new Date() - interviewSessionStartTime) / 1000);
+                    const remaining = Math.max(0, 600 - elapsed); // 10 minutes = 600 seconds
+                    
+                    const minutes = Math.floor(remaining / 60);
+                    const seconds = remaining % 60;
+                    
+                    timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    if (remaining <= 0) {
+                        stopInterviewSession();
+                    }
+                }
+            }, 1000);
+
+            // Add welcome message with session info
+            addInterviewChatMessage('system', `Interview session started for ${sessionData.position} at ${sessionData.company}. Good luck!`);
+            addInterviewTranscriptItem('Audio processing started. Transcript will update as you speak.');
+            
+            // Initialize transparency controls
+            initializeTransparencyControls();
+        }
+
+        async function stopInterviewSession() {
+            try {
+                // Clear timer
+                if (interviewSessionTimer) {
+                    clearInterval(interviewSessionTimer);
+                    interviewSessionTimer = null;
+                }
+
+                // End interview session (restore to dashboard)
+                const result = await window.electronAPI.endInterviewSession();
+                
+                if (result.success) {
+                    console.log('Interview session ended successfully');
+                    addInterviewChatMessage('system', 'Session ended. Thank you for using Chiku AI!');
+                } else {
+                    console.error('Failed to end interview session:', result.error);
+                }
+            } catch (error) {
+                console.error('Error ending interview session:', error);
+            }
+        }
+
+        function addInterviewChatMessage(type, content) {
+            const messagesContainer = document.getElementById('interviewChatMessages');
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `interview-chat-message ${type}-message`;
+            
+            if (type === 'ai') {
+                messageDiv.innerHTML = `
+                    <div><strong>AI:</strong> ${content}</div>
+                    <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">${timestamp}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div>${content}</div>
+                    <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">${timestamp}</div>
+                `;
+            }
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function addInterviewTranscriptItem(text) {
+            const transcriptContainer = document.getElementById('interviewTranscriptContent');
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            const transcriptDiv = document.createElement('div');
+            transcriptDiv.className = 'interview-transcript-item';
+            transcriptDiv.innerHTML = `
+                <div class="interview-transcript-timestamp">${timestamp}</div>
+                <div class="interview-transcript-text">${text}</div>
+            `;
+            
+            transcriptContainer.appendChild(transcriptDiv);
+            transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
+        }
+
+        async function handleAIAnswerInterview() {
+            const btn = document.getElementById('aiAnswerBtnInterview');
+            btn.classList.add('active');
+            
+            try {
+                addInterviewChatMessage('system', 'Analyzing transcript for interview questions...');
+                
+                // Simulate AI processing
+                setTimeout(() => {
+                    const sampleAnswer = `Based on your background, I'd recommend highlighting your experience with modern technologies and your passion for problem-solving. Focus on specific examples that demonstrate your impact.`;
+                    addInterviewChatMessage('ai', sampleAnswer);
+                    btn.classList.remove('active');
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Error with AI Answer:', error);
+                addInterviewChatMessage('system', 'Error generating AI answer. Please try again.');
+                btn.classList.remove('active');
+            }
+        }
+
+        function handleAnalyzeScreenInterview() {
+            const btn = document.getElementById('analyzeScreenBtnInterview');
+            btn.classList.add('active');
+            
+            addInterviewChatMessage('system', 'Analyzing screen content...');
+            
+            setTimeout(() => {
+                addInterviewChatMessage('system', 'Screen analysis complete. No interview questions detected on screen.');
+                btn.classList.remove('active');
+            }, 1500);
+        }
+
+        function toggleChatFocusInterview() {
+            // Focus functionality could be added here
+        }
+
+        // Transparency control functions
+        function updateTransparency(value) {
+            const transparencyValue = document.getElementById('transparencyValue');
+            transparencyValue.textContent = value + '%';
+            
+            // Convert percentage to opacity (0.1 to 1.0)
+            const opacity = value / 100;
+            
+            // Update only the overlay background opacity, not the entire window
+            const interviewOverlay = document.getElementById('interviewOverlay');
+            if (interviewOverlay) {
+                const alpha = opacity * 0.95; // Keep some base opacity for the overlay
+                interviewOverlay.style.background = `rgba(0, 0, 0, ${alpha})`;
+            }
+        }
+
+        // Initialize transparency slider when entering interview mode
+        function initializeTransparencyControls() {
+            const slider = document.getElementById('transparencySlider');
+            const value = document.getElementById('transparencyValue');
+            
+            if (slider && value) {
+                // Set initial values
+                slider.value = 95;
+                value.textContent = '95%';
+                updateTransparency(95);
+            }
+        }
+
 
     </script>
 </body>

@@ -1,10 +1,12 @@
-import { app, BrowserWindow, shell, ipcMain, net } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, net, Tray, Menu, nativeImage } from 'electron';
 import * as path from 'path';
 import Store from 'electron-store';
 
 class ChikuDesktopApp {
   private mainWindow: BrowserWindow | null = null;
   private store: Store;
+  private isInterviewMode: boolean = false;
+  private originalBounds: any = null;
 
   constructor() {
     this.store = new Store();
@@ -104,14 +106,18 @@ class ChikuDesktopApp {
       },
       resizable: false,
       title: 'Chiku AI Desktop',
-      titleBarStyle: 'default'
+      titleBarStyle: 'default',
+      transparent: false,
+      frame: true,
+      skipTaskbar: false,
+      alwaysOnTop: false
     });
 
     // Enable content protection to prevent screen capture
     this.mainWindow.setContentProtection(true);
 
     // Load the renderer - always use file to avoid webpack issues
-    this.mainWindow.loadFile(path.join(__dirname, '../src/renderer.html'));
+    this.mainWindow.loadFile(path.join(__dirname, 'index.html'));
     
     const isDev = !app.isPackaged;
     if (isDev) {
@@ -121,6 +127,135 @@ class ChikuDesktopApp {
     this.mainWindow.on('closed', () => {
       this.mainWindow = null;
     });
+  }
+
+  private transformToInterviewMode(sessionData: any) {
+    if (!this.mainWindow || this.isInterviewMode) return;
+
+    // Store original window settings
+    this.originalBounds = this.mainWindow.getBounds();
+    
+    // Completely recreate window as frameless overlay
+    const { screen } = require('electron');
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const screenWidth = primaryDisplay.workAreaSize.width;
+    const margin = 20;
+
+    // Hide current window
+    this.mainWindow.hide();
+    
+    // Hide from dock completely
+    if (process.platform === 'darwin') {
+      app.dock.hide();
+    }
+
+    // Recreate as frameless transparent overlay
+    this.mainWindow.destroy();
+    this.mainWindow = new BrowserWindow({
+      width: 1000,
+      height: 650,
+      x: screenWidth - 1000 - margin,
+      y: margin,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      resizable: false,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js'),
+        webSecurity: true
+      }
+    });
+
+    // Set maximum always on top level
+    this.mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    this.mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+    // Enable content protection
+    this.mainWindow.setContentProtection(true);
+
+    // Load the renderer
+    this.mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+    // Handle close event
+    this.mainWindow.on('closed', () => {
+      this.mainWindow = null;
+    });
+
+    // Wait for window to be ready then send mode change
+    this.mainWindow.webContents.once('dom-ready', () => {
+      this.mainWindow.webContents.send('mode-changed', { 
+        mode: 'interview',
+        sessionData: sessionData 
+      });
+    });
+
+    this.isInterviewMode = true;
+    console.log('Window transformed to interview mode');
+  }
+
+  private transformToDashboardMode() {
+    if (!this.mainWindow || !this.isInterviewMode) return;
+
+    // Hide current frameless window
+    this.mainWindow.hide();
+
+    // Show in dock/taskbar again
+    if (process.platform === 'darwin') {
+      app.dock.show();
+    }
+
+    // Recreate as normal dashboard window
+    this.mainWindow.destroy();
+    this.mainWindow = new BrowserWindow({
+      width: 450,
+      height: 650,
+      x: this.originalBounds?.x || 100,
+      y: this.originalBounds?.y || 100,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js'),
+        webSecurity: true
+      },
+      resizable: false,
+      title: 'Chiku AI Desktop',
+      titleBarStyle: 'default',
+      transparent: false,
+      frame: true,
+      skipTaskbar: false,
+      alwaysOnTop: false
+    });
+
+    // Enable content protection
+    this.mainWindow.setContentProtection(true);
+
+    // Load the renderer
+    this.mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+    // Handle close event
+    this.mainWindow.on('closed', () => {
+      this.mainWindow = null;
+    });
+
+    // Wait for window to be ready then send mode change
+    this.mainWindow.webContents.once('dom-ready', () => {
+      this.mainWindow.webContents.send('mode-changed', { 
+        mode: 'dashboard' 
+      });
+    });
+
+    this.isInterviewMode = false;
+
+    // Focus the window
+    this.mainWindow.focus();
+    if (process.platform === 'darwin') {
+      app.focus({ steal: true });
+    }
+
+    console.log('Window transformed to dashboard mode');
   }
 
   private setupIPC() {
@@ -307,57 +442,40 @@ class ChikuDesktopApp {
       }
     });
 
-    // Interview session window
-    let interviewWindow: BrowserWindow | null = null;
-
-    // Create interview session window
-    ipcMain.handle('create-interview-window', async (event, sessionData) => {
+    // Start interview session (transform window)
+    ipcMain.handle('start-interview-session', async (event, sessionData) => {
       try {
-        // Create single floating window
-        interviewWindow = new BrowserWindow({
-          width: 1000,
-          height: 650,
-          x: 200,
-          y: 150,
-          frame: false,
-          transparent: true,
-          alwaysOnTop: true,
-          resizable: true,
-          webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            preload: path.join(__dirname, 'preload.js')
-          }
-        });
-
-        // Load HTML content
-        await interviewWindow.loadFile(path.join(__dirname, 'interview-window.html'));
-
-        // Send session data
-        interviewWindow.webContents.send('session-data', sessionData);
-
-        // Handle window close event
-        interviewWindow.on('closed', () => {
-          interviewWindow = null;
-        });
-
+        this.transformToInterviewMode(sessionData);
         return { success: true };
       } catch (error) {
-        console.error('Error creating interview window:', error);
+        console.error('Error starting interview session:', error);
         return { success: false, error: error.message };
       }
     });
 
-    // Close interview window
-    ipcMain.handle('close-interview-window', async () => {
+    // End interview session (restore to dashboard)
+    ipcMain.handle('end-interview-session', async () => {
       try {
-        if (interviewWindow) {
-          interviewWindow.close();
-          interviewWindow = null;
-        }
+        this.transformToDashboardMode();
         return { success: true };
       } catch (error) {
-        console.error('Error closing interview window:', error);
+        console.error('Error ending interview session:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Set window opacity
+    ipcMain.handle('set-window-opacity', async (event, opacity) => {
+      try {
+        if (this.mainWindow && this.isInterviewMode) {
+          // Clamp opacity between 0.1 and 1.0
+          const clampedOpacity = Math.max(0.1, Math.min(1.0, opacity));
+          this.mainWindow.setOpacity(clampedOpacity);
+          return { success: true, opacity: clampedOpacity };
+        }
+        return { success: false, error: 'Window not available or not in interview mode' };
+      } catch (error) {
+        console.error('Error setting window opacity:', error);
         return { success: false, error: error.message };
       }
     });
