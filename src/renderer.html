@@ -1081,7 +1081,7 @@
             
             <div class="activation-buttons">
                 <button class="back-btn" onclick="backToResumeSelection()">Back</button>
-                <button class="activate-btn" onclick="activateSession()">Activate (Free)</button>
+                <button class="activate-btn" id="activateButton" onclick="activateSession()">Activate (Free)</button>
             </div>
         </div>
     </div>
@@ -1204,10 +1204,28 @@
             // This will be set based on user's subscription tier
             const actionBtn = document.getElementById('actionBtn');
             if (actionBtn && actionBtn.textContent.includes('Create Session')) {
-                showResumeSelection();
+                showPaidResumeSelection();
             } else {
                 buyCredits();
             }
+        }
+
+        function showPaidResumeSelection() {
+            // Hide dashboard and show resume selection screen
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('resumeSelectionScreen').style.display = 'flex';
+            
+            // Set flag for paid session
+            window.isPaidSession = true;
+            
+            // Update the continue button to call paid session function
+            const continueBtn = document.querySelector('.continue-btn');
+            if (continueBtn) {
+                continueBtn.setAttribute('onclick', 'continueWithPaidSession()');
+            }
+            
+            // Load resumes when screen opens
+            loadResumes();
         }
 
         function showFreeSession() {
@@ -1354,6 +1372,15 @@
             document.getElementById('dashboard').style.display = 'none';
             document.getElementById('resumeSelectionScreen').style.display = 'flex';
             
+            // Set flag for free session
+            window.isPaidSession = false;
+            
+            // Update the continue button to call free session function
+            const continueBtn = document.querySelector('.continue-btn');
+            if (continueBtn) {
+                continueBtn.setAttribute('onclick', 'continueWithResume()');
+            }
+            
             // Load resumes when screen opens
             loadResumes();
         }
@@ -1485,9 +1512,50 @@
                 resumeId: selectedResumeId
             };
             
+            // Update activation screen for free session (this function is called from Free Session)
+            updateActivationScreen(true);
+            
             // Show session activation screen
             document.getElementById('resumeSelectionScreen').style.display = 'none';
             document.getElementById('sessionActivationScreen').style.display = 'flex';
+        }
+
+        function continueWithPaidSession() {
+            // Store session data for later use
+            const company = document.getElementById('companyInput').value || 'Demo Company';
+            const position = document.getElementById('positionInput').value || 'Demo Position';
+            const autoAnswer = document.getElementById('autoAnswerCheckbox').checked;
+            
+            // Store in global variables for the activation screen
+            window.sessionData = {
+                company: company,
+                position: position,
+                autoAnswer: autoAnswer,
+                resumeId: selectedResumeId
+            };
+            
+            // Update activation screen for paid session
+            updateActivationScreen(false);
+            
+            // Show session activation screen
+            document.getElementById('resumeSelectionScreen').style.display = 'none';
+            document.getElementById('sessionActivationScreen').style.display = 'flex';
+        }
+
+        function updateActivationScreen(isFreeSession) {
+            const activateButton = document.getElementById('activateButton');
+            const sessionTimerText = document.querySelector('.session-timer-text');
+            const sessionWarningText = document.querySelector('.session-warning-text');
+            
+            if (isFreeSession) {
+                activateButton.textContent = 'Activate (Free)';
+                sessionTimerText.textContent = 'This is a 10 minute free session.';
+                sessionWarningText.textContent = "You won't be able to create another free session for the next 15 minutes.";
+            } else {
+                activateButton.textContent = 'Create Session';
+                sessionTimerText.textContent = 'This is a paid session.';
+                sessionWarningText.textContent = 'Session will use your available credits/minutes.';
+            }
         }
 
         // Session Activation Screen Functions
