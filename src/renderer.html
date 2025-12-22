@@ -546,7 +546,7 @@
                             <div class="session-option disabled">
                                 Free Session
                             </div>
-                            <button class="buy-credits-btn" onclick="buyCredits()">
+                            <button class="buy-credits-btn" id="actionBtn" onclick="handleActionButton()">
                                 Buy Credits
                             </button>
                         </div>
@@ -675,6 +675,22 @@
             }
         }
 
+        function createSession() {
+            if (window.electronAPI) {
+                window.electronAPI.openExternal('https://www.chiku-ai.in/dashboard');
+            }
+        }
+
+        function handleActionButton() {
+            // This will be set based on user's subscription tier
+            const actionBtn = document.getElementById('actionBtn');
+            if (actionBtn && actionBtn.textContent.includes('Create Session')) {
+                createSession();
+            } else {
+                buyCredits();
+            }
+        }
+
         function openDashboard() {
             if (window.electronAPI) {
                 window.electronAPI.openExternal('https://www.chiku-ai.in/dashboard');
@@ -701,6 +717,20 @@
                                 creditsCount.textContent = `${user.remainingMinutes || 0} / 10 min`;
                             } else {
                                 creditsCount.textContent = `${user.remainingMinutes || 0} minutes`;
+                            }
+                        }
+
+                        // Update action button based on subscription tier
+                        const actionBtn = document.getElementById('actionBtn');
+                        if (actionBtn) {
+                            if (user.subscriptionTier !== 'free') {
+                                // Paid plan - show Create Session button
+                                actionBtn.textContent = 'Create Session';
+                                actionBtn.style.background = '#c8894a'; // Orange background for create session
+                            } else {
+                                // Free plan - show Buy Credits button
+                                actionBtn.textContent = 'Buy Credits';
+                                actionBtn.style.background = '#374151'; // Dark gray background for buy credits
                             }
                         }
                     }
