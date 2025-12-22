@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   logout: () => ipcRenderer.invoke('logout'),
   getAuthStatus: () => ipcRenderer.invoke('get-auth-status'),
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
+  fetchSessions: () => ipcRenderer.invoke('fetch-sessions'),
+  fetchUserData: () => ipcRenderer.invoke('fetch-user-data'),
   
   // Listen for auth status changes
   onAuthStatusChanged: (callback) => {

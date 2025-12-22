@@ -51,7 +51,9 @@
     "protocols": [
       {
         "name": "chiku-ai-interview-assistant",
-        "schemes": ["chiku-ai-interview-assistant"]
+        "schemes": [
+          "chiku-ai-interview-assistant"
+        ]
       }
     ]
   },

@@ -1,7 +1,6 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, net } from 'electron';
 import * as path from 'path';
 import Store from 'electron-store';
-import * as http from 'http';
 
 class ChikuDesktopApp {
   private mainWindow: BrowserWindow | null = null;
@@ -151,6 +150,109 @@ class ChikuDesktopApp {
     // Open external URL
     ipcMain.handle('open-external', async (_, url) => {
       await shell.openExternal(url);
+    });
+
+    // Fetch user's interview sessions
+    ipcMain.handle('fetch-sessions', async () => {
+      try {
+        const user = this.store.get('user') as any;
+        if (!user || !user.id) {
+          throw new Error('No authenticated user');
+        }
+
+        // Use desktop-specific API endpoint with user ID
+        const request = net.request({
+          method: 'GET',
+          url: `https://www.chiku-ai.in/api/desktop-sessions?userId=${user.id}`
+        });
+
+        request.setHeader('Content-Type', 'application/json');
+
+        const response = await new Promise<any>((resolve, reject) => {
+          let responseData = '';
+          
+          request.on('response', (response) => {
+            response.on('data', (chunk) => {
+              responseData += chunk;
+            });
+            
+            response.on('end', () => {
+              try {
+                if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+                  resolve(JSON.parse(responseData));
+                } else {
+                  reject(new Error(`HTTP ${response.statusCode}`));
+                }
+              } catch (error) {
+                reject(error);
+              }
+            });
+          });
+          
+          request.on('error', reject);
+          request.end();
+        });
+
+        return response;
+      } catch (error) {
+        console.error('Error fetching sessions:', error);
+        // Return empty sessions when API fails
+        return {
+          success: false,
+          sessions: []
+        };
+      }
+    });
+
+    // Fetch user credits/remaining minutes
+    ipcMain.handle('fetch-user-data', async () => {
+      try {
+        const user = this.store.get('user') as any;
+        if (!user || !user.id) {
+          throw new Error('No authenticated user');
+        }
+
+        // Use desktop-specific API endpoint with user ID
+        const request = net.request({
+          method: 'GET',
+          url: `https://www.chiku-ai.in/api/desktop-user?userId=${user.id}`
+        });
+
+        request.setHeader('Content-Type', 'application/json');
+
+        const response = await new Promise<any>((resolve, reject) => {
+          let responseData = '';
+          
+          request.on('response', (response) => {
+            response.on('data', (chunk) => {
+              responseData += chunk;
+            });
+            
+            response.on('end', () => {
+              try {
+                if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+                  resolve(JSON.parse(responseData));
+                } else {
+                  reject(new Error(`HTTP ${response.statusCode}`));
+                }
+              } catch (error) {
+                reject(error);
+              }
+            });
+          });
+          
+          request.on('error', reject);
+          request.end();
+        });
+
+        return response;
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        return {
+          success: false,
+          error: error.message
+        };
+      }
     });
   }
 

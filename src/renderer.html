@@ -557,7 +557,7 @@
                             <!-- Sessions will be loaded here -->
                         </div>
                         <div class="view-all">
-                            <button class="view-all-btn" onclick="openDashboard()">
+                            <button class="view-all-btn" onclick="viewAllSessions()">
                                 View All →
                             </button>
                         </div>
@@ -626,7 +626,7 @@
                     dashboard.style.flexDirection = 'column';
                 }
                 
-                // Update user info
+                // Update user info and load real data
                 if (user) {
                     const userName = document.getElementById('userName');
                     const userEmail = document.getElementById('userEmail');
@@ -640,7 +640,8 @@
                     }
                 }
                 
-                // Load sessions
+                // Load real user data and sessions
+                loadUserData();
                 loadSessions();
             } else {
                 if (loginContainer) loginContainer.style.display = 'flex';
@@ -680,43 +681,81 @@
             }
         }
 
-        function loadSessions() {
-            // Mock session data - this would come from your API in a real implementation
-            const sessions = [
-                {
-                    id: 1,
-                    name: 'A',
-                    language: 'English',
-                    status: 'Expired',
-                    type: 'Free',
-                    date: '19 Dec 2025'
-                },
-                {
-                    id: 2,
-                    name: 'S',
-                    language: 'English', 
-                    status: 'Expired',
-                    type: 'Free',
-                    date: '14 Dec 2025'
-                }
-            ];
+        function viewAllSessions() {
+            if (window.electronAPI) {
+                window.electronAPI.openExternal('https://www.chiku-ai.in/dashboard/interviewSessions');
+            }
+        }
 
-            const sessionsList = document.getElementById('sessionsList');
-            sessionsList.innerHTML = sessions.map(session => `
-                <div class="session-item">
-                    <div class="session-info">
-                        <div class="session-avatar">${session.name}</div>
-                        <div class="session-details">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span class="session-language">${session.language}</span>
-                                <span class="session-status">${session.status}</span>
-                                <span class="session-language" style="background: #22c55e;">${session.type}</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="session-date">${session.date}</div>
-                </div>
-            `).join('');
+        async function loadUserData() {
+            try {
+                if (window.electronAPI) {
+                    const response = await window.electronAPI.fetchUserData();
+                    if (response.success && response.user) {
+                        const user = response.user;
+                        
+                        // Update credits display
+                        const creditsCount = document.getElementById('creditsCount');
+                        if (creditsCount) {
+                            if (user.subscriptionTier === 'free') {
+                                creditsCount.textContent = `${user.remainingMinutes || 0} / 10 min`;
+                            } else {
+                                creditsCount.textContent = `${user.remainingMinutes || 0} minutes`;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
+        }
+
+        async function loadSessions() {
+            try {
+                if (window.electronAPI) {
+                    const response = await window.electronAPI.fetchSessions();
+                    if (response.success && response.sessions && response.sessions.length > 0) {
+                        // Show only first 2 sessions for desktop app
+                        const sessions = response.sessions.slice(0, 2);
+                        
+                        const sessionsList = document.getElementById('sessionsList');
+                        sessionsList.innerHTML = sessions.map(session => {
+                            const date = new Date(session.createdAt);
+                            const formattedDate = date.toLocaleDateString('en-US', { 
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                            });
+                            
+                            const companyInitial = (session.company || 'C').charAt(0).toUpperCase();
+                            
+                            return `
+                                <div class="session-item">
+                                    <div class="session-info">
+                                        <div class="session-avatar">${companyInitial}</div>
+                                        <div class="session-details">
+                                            <div style="font-weight: 500; color: #1f2937; margin-bottom: 2px;">${session.company}</div>
+                                            <div style="font-size: 12px; color: #6b7280;">${session.position}</div>
+                                        </div>
+                                    </div>
+                                    <div class="session-date">${formattedDate}</div>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        // Show empty state when no sessions
+                        const sessionsList = document.getElementById('sessionsList');
+                        sessionsList.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 40px; font-size: 14px;">No interview sessions yet</div>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+                // Show error state
+                const sessionsList = document.getElementById('sessionsList');
+                if (sessionsList) {
+                    sessionsList.innerHTML = '<div style="text-align: center; color: #9ca3af; padding: 40px; font-size: 14px;">Unable to load sessions</div>';
+                }
+            }
         }
 
         // Close menu when clicking outside
