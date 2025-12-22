@@ -306,6 +306,61 @@ class ChikuDesktopApp {
         };
       }
     });
+
+    // Interview session window
+    let interviewWindow: BrowserWindow | null = null;
+
+    // Create interview session window
+    ipcMain.handle('create-interview-window', async (event, sessionData) => {
+      try {
+        // Create single floating window
+        interviewWindow = new BrowserWindow({
+          width: 1000,
+          height: 650,
+          x: 200,
+          y: 150,
+          frame: false,
+          transparent: true,
+          alwaysOnTop: true,
+          resizable: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            preload: path.join(__dirname, 'preload.js')
+          }
+        });
+
+        // Load HTML content
+        await interviewWindow.loadFile(path.join(__dirname, 'interview-window.html'));
+
+        // Send session data
+        interviewWindow.webContents.send('session-data', sessionData);
+
+        // Handle window close event
+        interviewWindow.on('closed', () => {
+          interviewWindow = null;
+        });
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error creating interview window:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Close interview window
+    ipcMain.handle('close-interview-window', async () => {
+      try {
+        if (interviewWindow) {
+          interviewWindow.close();
+          interviewWindow = null;
+        }
+        return { success: true };
+      } catch (error) {
+        console.error('Error closing interview window:', error);
+        return { success: false, error: error.message };
+      }
+    });
   }
 
   private handleAuthCallback(url: string) {

@@ -891,6 +891,7 @@
         .activate-btn:hover {
             background: #b87c42;
         }
+
     </style>
 </head>
 <body>
@@ -1085,6 +1086,7 @@
             </div>
         </div>
     </div>
+
 
     <script>
         // Polyfill for global
@@ -1570,28 +1572,30 @@
             }
         }
 
-        function activateSession() {
+        async function activateSession() {
             // Get the session data
             const sessionData = window.sessionData;
             
             console.log('Activating session with data:', sessionData);
             
-            // Create session by redirecting to the web app with the session data
-            if (window.electronAPI) {
-                const baseUrl = 'https://www.chiku-ai.in/dashboard';
-                const params = new URLSearchParams({
-                    company: sessionData.company,
-                    position: sessionData.position,
-                    autoAnswer: sessionData.autoAnswer.toString()
-                });
+            try {
+                // Create single interview window
+                const result = await window.electronAPI.createInterviewWindow(sessionData);
                 
-                if (sessionData.resumeId) {
-                    params.append('resumeId', sessionData.resumeId);
+                if (result.success) {
+                    console.log('Interview window created successfully');
+                    // Hide activation screen, keep dashboard visible underneath
+                    document.getElementById('sessionActivationScreen').style.display = 'none';
+                } else {
+                    console.error('Failed to create interview window:', result.error);
+                    alert('Failed to start interview session. Please try again.');
                 }
-                
-                window.electronAPI.openExternal(`${baseUrl}?${params.toString()}`);
+            } catch (error) {
+                console.error('Error creating interview window:', error);
+                alert('Failed to start interview session. Please try again.');
             }
         }
+
     </script>
 </body>
 </html>
