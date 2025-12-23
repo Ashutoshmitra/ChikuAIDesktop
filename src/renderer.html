@@ -1139,6 +1139,53 @@
             transform: none;
         }
 
+        /* Action Buttons Below Chat Input */
+        .interview-action-buttons {
+            display: flex;
+            gap: 8px;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .interview-action-btn {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 10px 16px;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .interview-action-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #c8894a;
+            transform: translateY(-1px);
+        }
+
+        .interview-action-btn:active {
+            transform: translateY(0);
+        }
+
+        .interview-action-btn.active {
+            background: #c8894a;
+            border-color: #c8894a;
+            box-shadow: 0 2px 8px rgba(200, 137, 74, 0.3);
+        }
+
+        .interview-action-btn:disabled {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.5;
+        }
+
         .interview-transcript-item {
             margin-bottom: 12px;
             padding: 8px 0;
@@ -1295,6 +1342,66 @@
 
         .transparency-controls:hover {
             background: rgba(0, 0, 0, 0.9);
+        }
+
+        /* Header Transparency Controls */
+        .header-transparency-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-transparency-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .header-transparency-slider {
+            width: 80px;
+            height: 3px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .header-transparency-slider::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #c8894a;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .header-transparency-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #b87c42;
+        }
+
+        .header-transparency-slider::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #c8894a;
+            cursor: pointer;
+            border: none;
+        }
+
+        .header-transparency-value {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            font-weight: 600;
+            min-width: 30px;
+            text-align: center;
         }
 
         /* Code Block Styling - Completely redesigned */
@@ -1672,9 +1779,19 @@
     <div class="interview-overlay" id="interviewOverlay">
         <div class="interview-header">
             <div class="interview-header-left">
-                <button class="interview-control-btn" id="aiAnswerBtnInterview" onclick="handleAIAnswerInterview()">AI Answer</button>
-                <button class="interview-control-btn" id="analyzeScreenBtnInterview" onclick="handleAnalyzeScreenInterview()">Analyze Screen</button>
-                <button class="interview-control-btn" id="chatBtnInterview" onclick="toggleChatFocusInterview()">Chat</button>
+                <div class="header-transparency-controls">
+                    <span class="header-transparency-label">Opacity</span>
+                    <input 
+                        type="range" 
+                        class="header-transparency-slider" 
+                        id="transparencySlider"
+                        min="10" 
+                        max="100" 
+                        value="95" 
+                        oninput="updateTransparency(this.value)"
+                    >
+                    <span class="header-transparency-value" id="transparencyValue">95%</span>
+                </div>
             </div>
             
             <div class="interview-header-center">Interview Assistant</div>
@@ -1700,6 +1817,10 @@
                     <input type="text" id="chatInput" class="interview-chat-input" placeholder="Ask anything..." onkeypress="handleChatInputKeyPress(event)">
                     <button class="interview-chat-send-btn" onclick="handleChatSend()" id="chatSendBtn">Send</button>
                 </div>
+                <div class="interview-action-buttons">
+                    <button class="interview-action-btn" id="aiAnswerBtnInterview" onclick="handleAIAnswerInterview()">AI Answer</button>
+                    <button class="interview-action-btn" id="analyzeScreenBtnInterview" onclick="handleAnalyzeScreenInterview()">Analyze Screen</button>
+                </div>
             </div>
 
             <!-- Right Panel - Transcript -->
@@ -1714,21 +1835,6 @@
             </div>
         </div>
 
-        <!-- Transparency Controls -->
-        <div class="transparency-controls">
-            <span class="transparency-label">Opacity</span>
-            <input 
-                type="range" 
-                class="transparency-slider" 
-                id="transparencySlider"
-                min="10" 
-                max="100" 
-                value="95" 
-                step="5"
-                oninput="updateTransparency(this.value)"
-            >
-            <span class="transparency-value" id="transparencyValue">95%</span>
-        </div>
     </div>
 
     <script>
@@ -1778,23 +1884,18 @@
 
             // Listen for AI response chunks (streaming)
             window.electronAPI.onAIResponseChunk((chunk) => {
-                console.log('[STREAMING DEBUG] Received chunk for message:', currentStreamingMessageId, 'chunk:', chunk);
-                
                 if (currentStreamingMessageId && streamingMessages.has(currentStreamingMessageId)) {
                     // Get the current content for this specific message and append the chunk
                     const currentContent = streamingMessages.get(currentStreamingMessageId);
                     const updatedContent = currentContent + chunk;
                     streamingMessages.set(currentStreamingMessageId, updatedContent);
                     
-                    console.log('[STREAMING DEBUG] Updating message with content:', updatedContent);
                     updateInterviewChatMessage(currentStreamingMessageId, updatedContent);
                 }
             });
 
             // Listen for session timer updates
-            console.log('Setting up session timer listener...');
             window.electronAPI.onSessionTimerUpdate((timerData) => {
-                console.log('Timer update received:', timerData);
                 const timerElement = document.getElementById('sessionTimerInterview');
                 if (timerElement && timerData) {
                     // Use the display format from main.ts which handles both free and paid users
@@ -2000,7 +2101,6 @@
                         
                         // Check cooldown status for free users
                         if (user.subscriptionTier === 'free') {
-                            console.log('[DEBUG] User remaining minutes from loadUserData:', user.remainingMinutes);
                             await checkAndDisplayCooldown(user);
                         }
                     }
@@ -2013,7 +2113,6 @@
         let cooldownTimer = null;
 
         async function checkAndDisplayCooldown(userData = null) {
-            console.log('[COOLDOWN DEBUG] Checking cooldown status...');
             try {
                 if (window.electronAPI) {
                     // Use userData if provided, otherwise fetch from API
@@ -2024,8 +2123,6 @@
                             userInfo = userDataResponse.user;
                         }
                     }
-                    
-                    console.log('[COOLDOWN DEBUG] User info:', userInfo);
                     
                     if (userInfo && userInfo.subscriptionTier === 'free') {
                         const cooldownNotification = document.getElementById('cooldownNotification');
@@ -2039,14 +2136,9 @@
                         // Determine if user is in cooldown
                         const isInCooldown = remainingMinutes === 0 && freeMinutesResetAt && now < freeMinutesResetAt;
                         
-                        console.log('[COOLDOWN DEBUG] Remaining minutes:', remainingMinutes);
-                        console.log('[COOLDOWN DEBUG] Is in cooldown?', isInCooldown);
-                        console.log('[COOLDOWN DEBUG] Reset at:', freeMinutesResetAt);
-                        
                         const headerCooldownTimer = document.getElementById('headerCooldownTimer');
                         
                         if (remainingMinutes === 0) {
-                            console.log('[COOLDOWN DEBUG] Showing cooldown in header - Minutes exhausted');
                             
                             // Hide the yellow banner (we don't want it anymore)
                             if (cooldownNotification) {
@@ -2701,7 +2793,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                     
                     // Apply transparency after everything is working
                     setTimeout(() => {
-                        console.log('Applying initial transparency after transcription start');
                         updateTransparency(95);
                     }, 1000); // Wait 1 second for everything to settle
                 };
@@ -3112,7 +3203,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
         }
 
         async function autoAnswerQuestion(questionText) {
-            console.log('[AUTO AI] Generating streaming answer for:', questionText);
             
             try {
                 // Create a unique message ID for this streaming response
@@ -3139,7 +3229,6 @@ IMPORTANT:
 
                 // Add resume context to the message
                 const contextMessage = buildAIContextMessage(baseContextMessage);
-                console.log('[AUTO AI] Making streaming API call with context (including resume):', contextMessage);
                 
                 // Use streaming API
                 const response = await window.electronAPI.generateAIResponseStream({
@@ -3487,25 +3576,17 @@ IMPORTANT:
 
         // Transparency control functions
         function updateTransparency(value) {
-            console.log(`[RENDERER DEBUG] updateTransparency called with value: ${value}`);
             const transparencyValue = document.getElementById('transparencyValue');
             transparencyValue.textContent = value + '%';
             
             // Convert percentage to opacity (0.1 to 1.0)
             const opacity = value / 100;
-            console.log(`[RENDERER DEBUG] Calculated opacity: ${opacity}`);
             
             // Update only the overlay background opacity, not the entire window
             const interviewOverlay = document.getElementById('interviewOverlay');
             if (interviewOverlay) {
                 const alpha = opacity * 0.95; // Keep some base opacity for the overlay
-                console.log(`[RENDERER DEBUG] Setting overlay background to rgba(0, 0, 0, ${alpha})`);
                 interviewOverlay.style.background = `rgba(0, 0, 0, ${alpha})`;
-            }
-            
-            // Check if anything is calling setWindowOpacity
-            if (window.electronAPI && window.electronAPI.setWindowOpacity) {
-                console.log('[RENDERER DEBUG] setWindowOpacity is available but NOT calling it from updateTransparency');
             }
         }
 
@@ -3519,7 +3600,6 @@ IMPORTANT:
                 slider.value = 95;
                 value.textContent = '95%';
                 // Don't call updateTransparency here - let it be applied manually
-                console.log('Transparency controls initialized - transparency will be applied after transcription starts');
             }
         }
 
