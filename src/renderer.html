@@ -904,7 +904,7 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0, 0, 0, 0.95);
+            background: rgba(0, 0, 0, 0.98);
             color: white;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             backdrop-filter: blur(10px);
@@ -1451,6 +1451,18 @@
                 handleModeChange(mode, sessionData);
             });
 
+            // Listen for session timer updates (if available)
+            if (window.electronAPI.onSessionTimerUpdate) {
+                window.electronAPI.onSessionTimerUpdate((timerData) => {
+                    const timerElement = document.getElementById('sessionTimerInterview');
+                    if (timerElement && timerData.remaining !== undefined) {
+                        const minutes = Math.floor(timerData.remaining);
+                        const seconds = Math.floor((timerData.remaining - minutes) * 60);
+                        timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    }
+                });
+            }
+
         } else {
             console.error('electronAPI not available');
             // Show login screen when electronAPI is not available
@@ -1966,48 +1978,238 @@
         }
 
         // Interview mode variables
-        let interviewSessionStartTime = null;
-        let interviewSessionTimer = null;
         let currentInterviewSessionData = null;
+        let isTranscribing = false;
+        let assemblyAISocket = null;
+        let audioContext = null;
+        let mediaStream = null;
+        let currentTranscripts = [];
 
-        function initializeInterviewSession(sessionData) {
+        async function initializeInterviewSession(sessionData) {
             currentInterviewSessionData = sessionData;
-            interviewSessionStartTime = new Date();
             
-            // Start session timer
-            const timerElement = document.getElementById('sessionTimerInterview');
-            interviewSessionTimer = setInterval(() => {
-                if (interviewSessionStartTime) {
-                    const elapsed = Math.floor((new Date() - interviewSessionStartTime) / 1000);
-                    const remaining = Math.max(0, 600 - elapsed); // 10 minutes = 600 seconds
-                    
-                    const minutes = Math.floor(remaining / 60);
-                    const seconds = remaining % 60;
-                    
-                    timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                    
-                    if (remaining <= 0) {
-                        stopInterviewSession();
-                    }
-                }
-            }, 1000);
-
             // Add welcome message with session info
             addInterviewChatMessage('system', `Interview session started for ${sessionData.position} at ${sessionData.company}. Good luck!`);
-            addInterviewTranscriptItem('Audio processing started. Transcript will update as you speak.');
+            addInterviewTranscriptItem('Requesting permissions for microphone and screen access...');
             
             // Initialize transparency controls
             initializeTransparencyControls();
+            
+            // Request permissions and start transcription
+            await requestPermissionsAndStartTranscription();
+        }
+
+        async function requestPermissionsAndStartTranscription() {
+            try {
+                // Request permissions first
+                const permResult = await window.electronAPI.requestPermissions();
+                if (!permResult.success) {
+                    addInterviewChatMessage('system', 'Failed to get permissions. Some features may not work.');
+                }
+
+                // Get screen capture capability
+                const screenResult = await window.electronAPI.startScreenCapture();
+                if (!screenResult.success) {
+                    addInterviewChatMessage('system', 'Screen capture not available.');
+                }
+
+                // Start audio transcription
+                await startTranscription();
+                
+            } catch (error) {
+                console.error('Error requesting permissions:', error);
+                addInterviewChatMessage('system', 'Error setting up transcription. Please check your microphone permissions.');
+            }
+        }
+
+        async function startTranscription() {
+            try {
+                if (isTranscribing) return;
+                
+                addInterviewTranscriptItem('Starting transcription service...');
+                
+                // Get AssemblyAI token
+                const tokenResponse = await window.electronAPI.getAssemblyAIToken();
+                if (!tokenResponse.success) {
+                    throw new Error(tokenResponse.error);
+                }
+                
+                // Get microphone access
+                mediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                    },
+                });
+
+                // Create WebSocket connection to AssemblyAI
+                assemblyAISocket = new WebSocket(
+                    `wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&encoding=pcm_s16le&format_turns=true&token=${tokenResponse.token}`
+                );
+
+                assemblyAISocket.onopen = () => {
+                    console.log('AssemblyAI WebSocket connected');
+                    isTranscribing = true;
+                    addInterviewTranscriptItem('Transcription started. Speak clearly for best results.');
+                    startAudioProcessing();
+                    
+                    // Apply transparency after everything is working
+                    setTimeout(() => {
+                        console.log('Applying initial transparency after transcription start');
+                        updateTransparency(95);
+                    }, 1000); // Wait 1 second for everything to settle
+                };
+
+                assemblyAISocket.onmessage = (event) => {
+                    try {
+                        const message = JSON.parse(event.data);
+                        
+                        if (message.transcript !== undefined) {
+                            if (message.end_of_turn) {
+                                if (message.turn_is_formatted && message.transcript) {
+                                    // Final transcript
+                                    currentTranscripts.push({
+                                        id: crypto.randomUUID(),
+                                        text: message.transcript,
+                                        timestamp: new Date(),
+                                    });
+                                    addInterviewTranscriptItem(message.transcript);
+                                    
+                                    // Save transcript to database
+                                    if (currentInterviewSessionData?.sessionId) {
+                                        const fullTranscript = currentTranscripts.map(t => t.text).join(' ');
+                                        window.electronAPI.saveTranscript(currentInterviewSessionData.sessionId, fullTranscript);
+                                    }
+                                }
+                            }
+                        }
+
+                        if (message.type === 'Error') {
+                            console.error('AssemblyAI error:', message);
+                            addInterviewTranscriptItem(`Transcription error: ${message.error}`);
+                        }
+                    } catch (e) {
+                        console.log('Non-JSON message received');
+                    }
+                };
+
+                assemblyAISocket.onerror = (event) => {
+                    console.error('WebSocket error:', event);
+                    addInterviewTranscriptItem('Transcription connection error.');
+                };
+
+                assemblyAISocket.onclose = (event) => {
+                    console.log('WebSocket closed:', event.code, event.reason);
+                    isTranscribing = false;
+                };
+
+            } catch (error) {
+                console.error('Error starting transcription:', error);
+                addInterviewTranscriptItem(`Failed to start transcription: ${error.message}`);
+            }
+        }
+
+        async function startAudioProcessing() {
+            audioContext = new AudioContext({ sampleRate: 16000 });
+            const source = audioContext.createMediaStreamSource(mediaStream);
+
+            // Create AudioWorklet processor inline to avoid external files
+            const processorCode = `
+                class TranscriptionProcessor extends AudioWorkletProcessor {
+                    constructor() {
+                        super();
+                        this.bufferSize = 2048;
+                        this.buffer = new Float32Array(this.bufferSize);
+                        this.bufferIndex = 0;
+                    }
+                    
+                    process(inputs, outputs, parameters) {
+                        const input = inputs[0];
+                        if (input.length > 0) {
+                            const inputChannel = input[0];
+                            
+                            for (let i = 0; i < inputChannel.length; i++) {
+                                this.buffer[this.bufferIndex] = inputChannel[i];
+                                this.bufferIndex++;
+                                
+                                if (this.bufferIndex >= this.bufferSize) {
+                                    // Send buffer to main thread
+                                    this.port.postMessage({
+                                        type: 'audioBuffer',
+                                        buffer: this.buffer.slice()
+                                    });
+                                    this.bufferIndex = 0;
+                                }
+                            }
+                        }
+                        return true; // Keep processor alive
+                    }
+                }
+                
+                registerProcessor('transcription-processor', TranscriptionProcessor);
+            `;
+
+            // Create blob URL for the processor
+            const blob = new Blob([processorCode], { type: 'application/javascript' });
+            const processorUrl = URL.createObjectURL(blob);
+
+            // Load the AudioWorklet module
+            await audioContext.audioWorklet.addModule(processorUrl);
+
+            // Create AudioWorklet node
+            const workletNode = new AudioWorkletNode(audioContext, 'transcription-processor');
+
+            // Handle messages from the processor
+            workletNode.port.onmessage = (event) => {
+                if (event.data.type === 'audioBuffer' && assemblyAISocket && assemblyAISocket.readyState === WebSocket.OPEN) {
+                    const pcm16 = convertFloat32ToPCM16(event.data.buffer);
+                    assemblyAISocket.send(pcm16.buffer);
+                }
+            };
+
+            // Connect source to worklet (no need to connect to destination!)
+            source.connect(workletNode);
+            
+            // Clean up blob URL
+            URL.revokeObjectURL(processorUrl);
+        }
+
+        function convertFloat32ToPCM16(float32Array) {
+            const pcm16 = new Int16Array(float32Array.length);
+            for (let i = 0; i < float32Array.length; i++) {
+                const s = Math.max(-1, Math.min(1, float32Array[i]));
+                pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+            }
+            return pcm16;
+        }
+
+        function stopTranscription() {
+            if (assemblyAISocket) {
+                assemblyAISocket.send(JSON.stringify({ type: 'Terminate' }));
+                assemblyAISocket.close();
+                assemblyAISocket = null;
+            }
+
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+
+            isTranscribing = false;
         }
 
         async function stopInterviewSession() {
             try {
-                // Clear timer
-                if (interviewSessionTimer) {
-                    clearInterval(interviewSessionTimer);
-                    interviewSessionTimer = null;
-                }
-
+                // Stop transcription
+                stopTranscription();
+                
                 // End interview session (restore to dashboard)
                 const result = await window.electronAPI.endInterviewSession();
                 
@@ -2067,30 +2269,84 @@
             try {
                 addInterviewChatMessage('system', 'Analyzing transcript for interview questions...');
                 
-                // Simulate AI processing
-                setTimeout(() => {
-                    const sampleAnswer = `Based on your background, I'd recommend highlighting your experience with modern technologies and your passion for problem-solving. Focus on specific examples that demonstrate your impact.`;
-                    addInterviewChatMessage('ai', sampleAnswer);
+                // Get current transcript
+                const fullTranscript = currentTranscripts.map(t => t.text).join(' ');
+                
+                if (!fullTranscript.trim()) {
+                    addInterviewChatMessage('system', 'No transcript available yet. Please speak first.');
                     btn.classList.remove('active');
-                }, 2000);
+                    return;
+                }
+
+                // Generate AI response using transcript
+                const response = await window.electronAPI.generateAIResponse({
+                    transcript: fullTranscript,
+                    message: `Extract the most recent question from this transcript and provide a professional interview answer: ${fullTranscript}`,
+                    isCoding: false
+                });
+
+                if (response.success) {
+                    addInterviewChatMessage('ai', response.response);
+                } else {
+                    addInterviewChatMessage('system', `Error generating AI answer: ${response.error}`);
+                }
                 
             } catch (error) {
                 console.error('Error with AI Answer:', error);
                 addInterviewChatMessage('system', 'Error generating AI answer. Please try again.');
+            } finally {
                 btn.classList.remove('active');
             }
         }
 
-        function handleAnalyzeScreenInterview() {
+        async function handleAnalyzeScreenInterview() {
             const btn = document.getElementById('analyzeScreenBtnInterview');
             btn.classList.add('active');
             
-            addInterviewChatMessage('system', 'Analyzing screen content...');
-            
-            setTimeout(() => {
-                addInterviewChatMessage('system', 'Screen analysis complete. No interview questions detected on screen.');
+            try {
+                addInterviewChatMessage('system', 'Capturing and analyzing screen content...');
+                
+                // Capture current screen
+                const captureResult = await window.electronAPI.captureScreen();
+                
+                if (!captureResult.success) {
+                    addInterviewChatMessage('system', `Screen capture failed: ${captureResult.error}`);
+                    return;
+                }
+
+                // Analyze screen content
+                const analysisResult = await window.electronAPI.analyzeScreenContent(captureResult.imageData);
+                
+                if (analysisResult.success) {
+                    if (analysisResult.question && analysisResult.question !== "No questions found on screen.") {
+                        addInterviewChatMessage('system', `Question detected: ${analysisResult.question}`);
+                        
+                        // Generate AI answer for the detected question
+                        const fullTranscript = currentTranscripts.map(t => t.text).join(' ');
+                        const aiResponse = await window.electronAPI.generateAIResponse({
+                            message: analysisResult.question,
+                            transcript: fullTranscript,
+                            isCoding: analysisResult.isCoding || false
+                        });
+
+                        if (aiResponse.success) {
+                            addInterviewChatMessage('ai', aiResponse.response);
+                        } else {
+                            addInterviewChatMessage('system', 'Generated answer but failed to process it.');
+                        }
+                    } else {
+                        addInterviewChatMessage('system', 'Screen analysis complete. No interview questions detected on screen.');
+                    }
+                } else {
+                    addInterviewChatMessage('system', `Screen analysis failed: ${analysisResult.error}`);
+                }
+                
+            } catch (error) {
+                console.error('Error with screen analysis:', error);
+                addInterviewChatMessage('system', 'Error analyzing screen content. Please try again.');
+            } finally {
                 btn.classList.remove('active');
-            }, 1500);
+            }
         }
 
         function toggleChatFocusInterview() {
@@ -2099,17 +2355,25 @@
 
         // Transparency control functions
         function updateTransparency(value) {
+            console.log(`[RENDERER DEBUG] updateTransparency called with value: ${value}`);
             const transparencyValue = document.getElementById('transparencyValue');
             transparencyValue.textContent = value + '%';
             
             // Convert percentage to opacity (0.1 to 1.0)
             const opacity = value / 100;
+            console.log(`[RENDERER DEBUG] Calculated opacity: ${opacity}`);
             
             // Update only the overlay background opacity, not the entire window
             const interviewOverlay = document.getElementById('interviewOverlay');
             if (interviewOverlay) {
                 const alpha = opacity * 0.95; // Keep some base opacity for the overlay
+                console.log(`[RENDERER DEBUG] Setting overlay background to rgba(0, 0, 0, ${alpha})`);
                 interviewOverlay.style.background = `rgba(0, 0, 0, ${alpha})`;
+            }
+            
+            // Check if anything is calling setWindowOpacity
+            if (window.electronAPI && window.electronAPI.setWindowOpacity) {
+                console.log('[RENDERER DEBUG] setWindowOpacity is available but NOT calling it from updateTransparency');
             }
         }
 
@@ -2119,10 +2383,11 @@
             const value = document.getElementById('transparencyValue');
             
             if (slider && value) {
-                // Set initial values
+                // Set initial values but don't apply transparency yet
                 slider.value = 95;
                 value.textContent = '95%';
-                updateTransparency(95);
+                // Don't call updateTransparency here - let it be applied manually
+                console.log('Transparency controls initialized - transparency will be applied after transcription starts');
             }
         }
 

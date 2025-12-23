@@ -1,16 +1,133 @@
-import { app, BrowserWindow, shell, ipcMain, net, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, net, Tray, Menu, nativeImage, desktopCapturer, screen } from 'electron';
 import * as path from 'path';
 import Store from 'electron-store';
+import { v4 as uuidv4 } from 'uuid';
+
+// Data Models - copied from webapp
+interface IInterviewSession {
+  _id?: string;
+  sessionId: string;
+  userId: string;
+  company: string;
+  position: string;
+  status: 'active' | 'completed' | 'expired';
+  createdAt: Date;
+  startedAt?: Date;
+  endedAt?: Date;
+  duration: number;
+  transcription: string;
+  sessionType?: 'free' | 'paid';
+  maxDuration?: number;
+}
+
+interface IUser {
+  _id: string;
+  email: string;
+  name: string;
+  subscriptionTier: 'free' | 'starter' | 'standard' | 'pro';
+  subscriptionStatus: 'active' | 'expired' | 'cancelled';
+  remainingMinutes: number;
+  totalMinutesUsed: number;
+}
+
+// API Response Types
+interface AssemblyAITokenResponse {
+  token: string;
+}
+
+interface ChatResponse {
+  response: string;
+}
+
+interface ScreenAnalysisResponse {
+  question: string;
+  isCoding?: boolean;
+}
 
 class ChikuDesktopApp {
   private mainWindow: BrowserWindow | null = null;
   private store: Store;
   private isInterviewMode: boolean = false;
   private originalBounds: any = null;
+  private windowReadyForIPC: boolean = false;
+  
+  // Session tracking properties
+  private currentSessionId: string | null = null;
+  private sessionStartTime: Date | null = null;
+  private sessionTimer: NodeJS.Timeout | null = null;
+  private timerSessionId: string | null = null;
+  
+  // Webapp backend configuration
+  private readonly WEBAPP_BASE_URL = process.env.WEBAPP_BASE_URL || 'https://www.chiku-ai.in';
 
   constructor() {
     this.store = new Store();
     this.setupApp();
+  }
+  
+  private getAuthToken(): string | null {
+    const user = this.store.get('user') as any;
+    return user?.token || null;
+  }
+  
+  private async makeAuthenticatedRequest(endpoint: string, options: any = {}): Promise<any> {
+    const token = this.getAuthToken();
+    
+    if (!token) {
+      throw new Error('User not authenticated');
+    }
+
+    const url = `${this.WEBAPP_BASE_URL}${endpoint}`;
+    
+    return new Promise((resolve, reject) => {
+      const request = net.request({
+        method: options.method || 'GET',
+        url: url
+      });
+
+      request.setHeader('Content-Type', 'application/json');
+      request.setHeader('User-Agent', 'ChikuAI-Desktop/1.0');
+      request.setHeader('Authorization', `Bearer ${token}`);
+
+      // Add custom headers if provided
+      if (options.headers) {
+        Object.keys(options.headers).forEach(key => {
+          request.setHeader(key, options.headers[key]);
+        });
+      }
+
+      let responseData = '';
+
+      request.on('response', (response) => {
+        response.on('data', (chunk) => {
+          responseData += chunk;
+        });
+
+        response.on('end', () => {
+          try {
+            if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+              const jsonData = JSON.parse(responseData);
+              resolve(jsonData);
+            } else {
+              reject(new Error(`HTTP ${response.statusCode}: ${responseData}`));
+            }
+          } catch (error) {
+            reject(new Error(`Failed to parse response: ${error}`));
+          }
+        });
+      });
+
+      request.on('error', (error) => {
+        reject(error);
+      });
+
+      // Send request body if provided
+      if (options.body) {
+        request.write(options.body);
+      }
+
+      request.end();
+    });
   }
 
   private setupApp() {
@@ -129,8 +246,35 @@ class ChikuDesktopApp {
     });
   }
 
-  private transformToInterviewMode(sessionData: any) {
+  private async transformToInterviewMode(sessionData: any) {
     if (!this.mainWindow || this.isInterviewMode) return;
+
+    // Generate session ID and start tracking time
+    this.currentSessionId = uuidv4();
+    this.sessionStartTime = new Date();
+    
+    try {
+      // Create session via webapp backend API
+      const sessionDoc = {
+        sessionId: this.currentSessionId,
+        company: sessionData.company,
+        position: sessionData.position,
+        sessionType: sessionData.sessionType || 'free'
+      };
+      
+      await this.makeAuthenticatedRequest('/api/desktop-sessions/create', {
+        method: 'POST',
+        body: JSON.stringify(sessionDoc)
+      });
+      
+      console.log('Session created via webapp backend:', this.currentSessionId);
+    } catch (error) {
+      console.error('Failed to create session via webapp backend:', error);
+      // Continue anyway for offline functionality
+    }
+
+    // Clear any existing timer before destroying window
+    this.clearSessionTimer();
 
     // Store original window settings
     this.originalBounds = this.mainWindow.getBounds();
@@ -168,6 +312,8 @@ class ChikuDesktopApp {
         webSecurity: true
       }
     });
+    
+    console.log(`[DEBUG] Interview window created. Initial opacity: ${this.mainWindow.getOpacity()}`);
 
     // Set maximum always on top level
     this.mainWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -186,18 +332,156 @@ class ChikuDesktopApp {
 
     // Wait for window to be ready then send mode change
     this.mainWindow.webContents.once('dom-ready', () => {
-      this.mainWindow.webContents.send('mode-changed', { 
-        mode: 'interview',
-        sessionData: sessionData 
+      console.log('[DEBUG] DOM ready, window state:', {
+        isVisible: this.mainWindow?.isVisible(),
+        isMinimized: this.mainWindow?.isMinimized(),
+        opacity: this.mainWindow?.getOpacity(),
+        bounds: this.mainWindow?.getBounds()
       });
+      
+      // Add a small delay to ensure previous timer callbacks are done
+      setTimeout(() => {
+        if (this.mainWindow && !this.mainWindow.isDestroyed() && this.mainWindow.webContents) {
+          this.mainWindow.webContents.send('mode-changed', { 
+            mode: 'interview',
+            sessionData: {
+              ...sessionData,
+              sessionId: this.currentSessionId,
+              startTime: this.sessionStartTime
+            }
+          });
+          
+          console.log('[DEBUG] Mode changed sent, window state:', {
+            isVisible: this.mainWindow.isVisible(),
+            isMinimized: this.mainWindow.isMinimized(),
+            opacity: this.mainWindow.getOpacity()
+          });
+          
+          // Mark window as ready for IPC and start timer
+          this.windowReadyForIPC = true;
+          this.startSessionTimer();
+        }
+      }, 500); // 500ms delay to ensure previous callbacks are complete
     });
 
     this.isInterviewMode = true;
     console.log('Window transformed to interview mode');
   }
 
+  private startSessionTimer() {
+    // Clear any existing timer first
+    this.clearSessionTimer();
+    
+    // Store which session this timer belongs to
+    this.timerSessionId = this.currentSessionId;
+    
+    this.sessionTimer = setInterval(async () => {
+      // Check if this timer is still valid for the current session
+      if (this.timerSessionId !== this.currentSessionId) {
+        console.log('Timer session mismatch, clearing timer');
+        this.clearSessionTimer();
+        return;
+      }
+      
+      if (this.sessionStartTime && this.currentSessionId) {
+        const elapsed = Math.floor((new Date().getTime() - this.sessionStartTime.getTime()) / 1000 / 60); // minutes
+        
+        // Check if session time limit reached (10 min for free, 60 for paid)
+        const user = this.store.get('user') as any;
+        const maxDuration = user?.subscriptionTier === 'free' ? 10 : 60;
+        
+        if (elapsed >= maxDuration) {
+          console.log('Session time limit reached, ending session');
+          this.endCurrentSession();
+          return;
+        }
+        
+        // Send timer update to renderer (with comprehensive safety checks)
+        if (this.windowReadyForIPC && this.mainWindow && !this.mainWindow.isDestroyed() && 
+            this.mainWindow.webContents && !this.mainWindow.webContents.isDestroyed()) {
+          try {
+            this.mainWindow.webContents.send('session-timer-update', {
+              elapsed: elapsed,
+              remaining: maxDuration - elapsed
+            });
+          } catch (error) {
+            console.log('Timer update skipped - window communication error:', error.message);
+            // If we consistently can't communicate with window, clear the timer
+            if (error.message.includes('disposed') || error.message.includes('destroyed')) {
+              console.log('Clearing timer due to window disposal');
+              this.clearSessionTimer();
+            }
+          }
+        }
+      } else {
+        // No valid session data, clear the timer
+        console.log('No valid session data, clearing timer');
+        this.clearSessionTimer();
+      }
+    }, 1000);
+  }
+  
+  private clearSessionTimer() {
+    this.windowReadyForIPC = false;
+    if (this.sessionTimer) {
+      clearInterval(this.sessionTimer);
+      this.sessionTimer = null;
+    }
+    this.timerSessionId = null;
+  }
+  
+  private async endCurrentSession() {
+    if (this.currentSessionId && this.sessionStartTime) {
+      const elapsed = Math.floor((new Date().getTime() - this.sessionStartTime.getTime()) / 1000 / 60); // minutes
+      
+      try {
+        // Update session in database and user's remaining minutes
+        await this.updateSessionMinutes(this.currentSessionId, elapsed);
+        console.log(`Session ${this.currentSessionId} ended. Duration: ${elapsed} minutes`);
+      } catch (error) {
+        console.error('Error ending session:', error);
+      }
+      
+      // Clear timer and session data
+      this.clearSessionTimer();
+      this.currentSessionId = null;
+      this.sessionStartTime = null;
+    }
+    
+    // Return to dashboard mode
+    this.transformToDashboardMode();
+  }
+  
+  private async updateSessionMinutes(sessionId: string, minutesUsed: number) {
+    try {
+      // Update session via webapp backend API
+      await this.makeAuthenticatedRequest('/api/desktop-sessions/update', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          minutesUsed,
+          endedAt: new Date().toISOString(),
+          status: 'completed'
+        })
+      });
+      
+      console.log(`Session ${sessionId} updated via webapp backend. Minutes used: ${minutesUsed}`);
+    } catch (error) {
+      console.error('Error updating session minutes via webapp backend:', error);
+    }
+  }
+
   private transformToDashboardMode() {
     if (!this.mainWindow || !this.isInterviewMode) return;
+    
+    // End current session if still active
+    if (this.currentSessionId) {
+      this.endCurrentSession();
+      return; // endCurrentSession will call this method again
+    }
+
+    // Clear any session timer and mark window as not ready for IPC
+    this.clearSessionTimer();
 
     // Hide current frameless window
     this.mainWindow.hide();
@@ -290,44 +574,7 @@ class ChikuDesktopApp {
     // Fetch user's interview sessions
     ipcMain.handle('fetch-sessions', async () => {
       try {
-        const user = this.store.get('user') as any;
-        if (!user || !user.id) {
-          throw new Error('No authenticated user');
-        }
-
-        // Use desktop-specific API endpoint with user ID
-        const request = net.request({
-          method: 'GET',
-          url: `https://www.chiku-ai.in/api/desktop-sessions?userId=${user.id}`
-        });
-
-        request.setHeader('Content-Type', 'application/json');
-
-        const response = await new Promise<any>((resolve, reject) => {
-          let responseData = '';
-          
-          request.on('response', (response) => {
-            response.on('data', (chunk) => {
-              responseData += chunk;
-            });
-            
-            response.on('end', () => {
-              try {
-                if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
-                  resolve(JSON.parse(responseData));
-                } else {
-                  reject(new Error(`HTTP ${response.statusCode}`));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            });
-          });
-          
-          request.on('error', reject);
-          request.end();
-        });
-
+        const response = await this.makeAuthenticatedRequest('/api/desktop-sessions');
         return response;
       } catch (error) {
         console.error('Error fetching sessions:', error);
@@ -342,44 +589,7 @@ class ChikuDesktopApp {
     // Fetch user credits/remaining minutes
     ipcMain.handle('fetch-user-data', async () => {
       try {
-        const user = this.store.get('user') as any;
-        if (!user || !user.id) {
-          throw new Error('No authenticated user');
-        }
-
-        // Use desktop-specific API endpoint with user ID
-        const request = net.request({
-          method: 'GET',
-          url: `https://www.chiku-ai.in/api/desktop-user?userId=${user.id}`
-        });
-
-        request.setHeader('Content-Type', 'application/json');
-
-        const response = await new Promise<any>((resolve, reject) => {
-          let responseData = '';
-          
-          request.on('response', (response) => {
-            response.on('data', (chunk) => {
-              responseData += chunk;
-            });
-            
-            response.on('end', () => {
-              try {
-                if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
-                  resolve(JSON.parse(responseData));
-                } else {
-                  reject(new Error(`HTTP ${response.statusCode}`));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            });
-          });
-          
-          request.on('error', reject);
-          request.end();
-        });
-
+        const response = await this.makeAuthenticatedRequest('/api/desktop-user');
         return response;
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -393,44 +603,7 @@ class ChikuDesktopApp {
     // Fetch user's resumes
     ipcMain.handle('fetch-resumes', async () => {
       try {
-        const user = this.store.get('user') as any;
-        if (!user || !user.id) {
-          throw new Error('No authenticated user');
-        }
-
-        // Use the desktop-resumes API endpoint
-        const request = net.request({
-          method: 'GET',
-          url: `https://www.chiku-ai.in/api/desktop-resumes?userId=${user.id}`
-        });
-
-        request.setHeader('Content-Type', 'application/json');
-
-        const response = await new Promise<any>((resolve, reject) => {
-          let responseData = '';
-          
-          request.on('response', (response) => {
-            response.on('data', (chunk) => {
-              responseData += chunk;
-            });
-            
-            response.on('end', () => {
-              try {
-                if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
-                  resolve(JSON.parse(responseData));
-                } else {
-                  reject(new Error(`HTTP ${response.statusCode}`));
-                }
-              } catch (error) {
-                reject(error);
-              }
-            });
-          });
-          
-          request.on('error', reject);
-          request.end();
-        });
-
+        const response = await this.makeAuthenticatedRequest('/api/desktop-resumes');
         return response;
       } catch (error) {
         console.error('Error fetching resumes:', error);
@@ -445,7 +618,7 @@ class ChikuDesktopApp {
     // Start interview session (transform window)
     ipcMain.handle('start-interview-session', async (event, sessionData) => {
       try {
-        this.transformToInterviewMode(sessionData);
+        await this.transformToInterviewMode(sessionData);
         return { success: true };
       } catch (error) {
         console.error('Error starting interview session:', error);
@@ -467,15 +640,148 @@ class ChikuDesktopApp {
     // Set window opacity
     ipcMain.handle('set-window-opacity', async (event, opacity) => {
       try {
+        console.log(`[DEBUG] setWindowOpacity called with opacity: ${opacity}`);
         if (this.mainWindow && this.isInterviewMode) {
           // Clamp opacity between 0.1 and 1.0
           const clampedOpacity = Math.max(0.1, Math.min(1.0, opacity));
+          console.log(`[DEBUG] Setting window opacity to: ${clampedOpacity}`);
           this.mainWindow.setOpacity(clampedOpacity);
           return { success: true, opacity: clampedOpacity };
         }
+        console.log(`[DEBUG] Window not available for opacity change. Window exists: ${!!this.mainWindow}, Interview mode: ${this.isInterviewMode}`);
         return { success: false, error: 'Window not available or not in interview mode' };
       } catch (error) {
         console.error('Error setting window opacity:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Screen and Audio Capture APIs
+    ipcMain.handle('request-permissions', async () => {
+      try {
+        // Request microphone access by trying to get sources
+        await desktopCapturer.getSources({ types: ['screen'] });
+        return { success: true };
+      } catch (error) {
+        console.error('Error requesting permissions:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('start-screen-capture', async () => {
+      try {
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 1920, height: 1080 }
+        });
+        
+        if (sources.length > 0) {
+          return { success: true, sourceId: sources[0].id };
+        }
+        return { success: false, error: 'No screen sources available' };
+      } catch (error) {
+        console.error('Error starting screen capture:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('capture-screen', async () => {
+      try {
+        const sources = await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 1920, height: 1080 }
+        });
+        
+        if (sources.length > 0) {
+          const source = sources[0];
+          const dataUrl = source.thumbnail.toDataURL();
+          return { success: true, imageData: dataUrl };
+        }
+        return { success: false, error: 'No screen sources available' };
+      } catch (error) {
+        console.error('Error capturing screen:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // AssemblyAI Token API - Use webapp backend
+    ipcMain.handle('get-assemblyai-token', async () => {
+      try {
+        const response = await this.makeAuthenticatedRequest('/api/assemblyai-token') as AssemblyAITokenResponse;
+        return { success: true, token: response.token };
+      } catch (error: any) {
+        console.error('Error getting AssemblyAI token from webapp backend:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // OpenAI Chat API - Use webapp backend
+    ipcMain.handle('generate-ai-response', async (event, data) => {
+      try {
+        const response = await this.makeAuthenticatedRequest('/api/chat', {
+          method: 'POST',
+          body: JSON.stringify(data)
+        }) as ChatResponse;
+        
+        return { success: true, response: response.response };
+      } catch (error: any) {
+        console.error('Error getting AI response from webapp backend:', error);
+        return { success: false, error: 'Failed to get AI response from webapp backend' };
+      }
+    });
+
+    // Screen Analysis API - Use webapp backend
+    ipcMain.handle('analyze-screen-content', async (event, imageData) => {
+      try {
+        if (!imageData) {
+          return { success: false, error: 'Screen image data is required' };
+        }
+
+        const response = await this.makeAuthenticatedRequest('/api/analyze-screen', {
+          method: 'POST',
+          body: JSON.stringify({ imageData })
+        }) as ScreenAnalysisResponse;
+        
+        return { 
+          success: true,
+          question: response.question,
+          isCoding: response.isCoding || false
+        };
+      } catch (error: any) {
+        console.error('Screen analysis error from webapp backend:', error);
+        return { success: false, error: 'Failed to analyze screen content via webapp backend' };
+      }
+    });
+
+    // Debug relay from renderer
+    ipcMain.handle('debug-log', (event, message) => {
+      console.log(`[RENDERER] ${message}`);
+    });
+
+    // Session Management APIs - Use webapp backend
+    ipcMain.handle('update-session-minutes', async (event, sessionId, minutesUsed) => {
+      try {
+        await this.updateSessionMinutes(sessionId, minutesUsed);
+        return { success: true };
+      } catch (error: any) {
+        console.error('Error updating session minutes:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('save-transcript', async (event, sessionId, transcript) => {
+      try {
+        await this.makeAuthenticatedRequest('/api/desktop-sessions/transcript', {
+          method: 'POST',
+          body: JSON.stringify({
+            sessionId,
+            transcript
+          })
+        });
+
+        return { success: true };
+      } catch (error: any) {
+        console.error('Error saving transcript via webapp backend:', error);
         return { success: false, error: error.message };
       }
     });
@@ -513,6 +819,7 @@ class ChikuDesktopApp {
             email: userData.email || user.email,
             name: userData.name || user.name,
             image: userData.image,
+            token: userData.token, // Store JWT token
             authenticated: true,
             timestamp: Date.now()
           };

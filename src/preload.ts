@@ -13,14 +13,49 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startInterviewSession: (sessionData: any) => ipcRenderer.invoke('start-interview-session', sessionData),
   endInterviewSession: () => ipcRenderer.invoke('end-interview-session'),
   setWindowOpacity: (opacity: number) => ipcRenderer.invoke('set-window-opacity', opacity),
+  debugLog: (message: string) => ipcRenderer.invoke('debug-log', message),
+  
+  // Audio and Screen Capture APIs
+  requestPermissions: () => ipcRenderer.invoke('request-permissions'),
+  startAudioCapture: () => ipcRenderer.invoke('start-audio-capture'),
+  stopAudioCapture: () => ipcRenderer.invoke('stop-audio-capture'),
+  startScreenCapture: () => ipcRenderer.invoke('start-screen-capture'),
+  stopScreenCapture: () => ipcRenderer.invoke('stop-screen-capture'),
+  captureScreen: () => ipcRenderer.invoke('capture-screen'),
+  
+  // Transcription APIs
+  getAssemblyAIToken: () => ipcRenderer.invoke('get-assemblyai-token'),
+  
+  // AI Chat APIs
+  generateAIResponse: (data: any) => ipcRenderer.invoke('generate-ai-response', data),
+  analyzeScreenContent: (imageData: string) => ipcRenderer.invoke('analyze-screen-content', imageData),
+  
+  // Session Management APIs
+  updateSessionMinutes: (sessionId: string, minutesUsed: number) => ipcRenderer.invoke('update-session-minutes', sessionId, minutesUsed),
+  saveTranscript: (sessionId: string, transcript: string) => ipcRenderer.invoke('save-transcript', sessionId, transcript),
   
   // Listen for auth status changes
-  onAuthStatusChanged: (callback) => {
+  onAuthStatusChanged: (callback: (data: any) => void) => {
     ipcRenderer.on('auth-status-changed', (event, data) => callback(data));
   },
   
   // Listen for mode changes (dashboard/interview)
   onModeChanged: (callback: (data: any) => void) => {
     ipcRenderer.on('mode-changed', (event, data) => callback(data));
+  },
+  
+  // Listen for audio data
+  onAudioData: (callback: (data: ArrayBuffer) => void) => {
+    ipcRenderer.on('audio-data', (event, data) => callback(data));
+  },
+  
+  // Listen for transcript updates
+  onTranscriptUpdate: (callback: (data: any) => void) => {
+    ipcRenderer.on('transcript-update', (event, data) => callback(data));
+  },
+  
+  // Listen for session timer updates
+  onSessionTimerUpdate: (callback: (data: any) => void) => {
+    ipcRenderer.on('session-timer-update', (event, data) => callback(data));
   }
 });

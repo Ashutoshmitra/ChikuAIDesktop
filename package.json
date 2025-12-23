@@ -19,6 +19,7 @@
     "@babel/core": "^7.0.0",
     "@babel/preset-env": "^7.0.0",
     "@types/node": "^20.0.0",
+    "@types/uuid": "^10.0.0",
     "babel-loader": "^9.0.0",
     "concurrently": "^8.0.0",
     "css-loader": "^6.0.0",
@@ -33,7 +34,8 @@
     "webpack-dev-server": "^4.0.0"
   },
   "dependencies": {
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "uuid": "^13.0.0"
   },
   "build": {
     "appId": "com.chiku-ai.desktop",
