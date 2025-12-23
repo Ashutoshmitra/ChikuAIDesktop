@@ -349,8 +349,6 @@ class ChikuDesktopApp {
       }
     });
     
-    console.log(`[DEBUG] Interview window created. Initial opacity: ${this.mainWindow.getOpacity()}`);
-
     // Set maximum always on top level
     this.mainWindow.setAlwaysOnTop(true, 'screen-saver');
     this.mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
@@ -368,12 +366,6 @@ class ChikuDesktopApp {
 
     // Wait for window to be ready then send mode change
     this.mainWindow.webContents.once('dom-ready', () => {
-      console.log('[DEBUG] DOM ready, window state:', {
-        isVisible: this.mainWindow?.isVisible(),
-        isMinimized: this.mainWindow?.isMinimized(),
-        opacity: this.mainWindow?.getOpacity(),
-        bounds: this.mainWindow?.getBounds()
-      });
       
       // Add a small delay to ensure previous timer callbacks are done
       setTimeout(() => {
@@ -387,11 +379,6 @@ class ChikuDesktopApp {
             }
           });
           
-          console.log('[DEBUG] Mode changed sent, window state:', {
-            isVisible: this.mainWindow.isVisible(),
-            isMinimized: this.mainWindow.isMinimized(),
-            opacity: this.mainWindow.getOpacity()
-          });
           
           // Mark window as ready for IPC first, then start timer
           this.windowReadyForIPC = true;
@@ -432,7 +419,6 @@ class ChikuDesktopApp {
             const payload = JSON.parse(Buffer.from(user.token.split('.')[1], 'base64').toString());
             subscriptionTier = payload.subscriptionTier;
           } catch (error) {
-            console.log(`[TIMER DEBUG] Failed to extract subscriptionTier from JWT:`, error.message);
           }
         }
         
@@ -489,7 +475,6 @@ class ChikuDesktopApp {
                     // Update cached remaining minutes with latest from DB
                     const newRemainingMinutes = updateResponse.user.remainingMinutes || 0;
                     this.store.set('cachedRemainingMinutes', Number(newRemainingMinutes) || 0);
-                    console.log(`[TIMER DEBUG] Updated DB - Minutes used: ${minutesUsedSoFar}, Remaining in DB: ${newRemainingMinutes}`);
                     
                     // End session when no minutes remaining
                     if (newRemainingMinutes <= 0) {
@@ -536,7 +521,6 @@ class ChikuDesktopApp {
             }
           }
         } else {
-          console.log('[TIMER DEBUG] Timer update skipped - IPC not ready or window not available');
         }
       } else {
         // No valid session data, clear the timer
@@ -802,15 +786,12 @@ class ChikuDesktopApp {
     // Set window opacity
     ipcMain.handle('set-window-opacity', async (event, opacity) => {
       try {
-        console.log(`[DEBUG] setWindowOpacity called with opacity: ${opacity}`);
         if (this.mainWindow && this.isInterviewMode) {
           // Clamp opacity between 0.1 and 1.0
           const clampedOpacity = Math.max(0.1, Math.min(1.0, opacity));
-          console.log(`[DEBUG] Setting window opacity to: ${clampedOpacity}`);
           this.mainWindow.setOpacity(clampedOpacity);
           return { success: true, opacity: clampedOpacity };
         }
-        console.log(`[DEBUG] Window not available for opacity change. Window exists: ${!!this.mainWindow}, Interview mode: ${this.isInterviewMode}`);
         return { success: false, error: 'Window not available or not in interview mode' };
       } catch (error) {
         console.error('Error setting window opacity:', error);
@@ -899,7 +880,6 @@ class ChikuDesktopApp {
     // OpenAI Chat API with streaming - Use webapp backend
     ipcMain.handle('generate-ai-response-stream', async (event, data) => {
       try {
-        console.log('[AI STREAM DEBUG] Making streaming request with data:', JSON.stringify(data, null, 2));
         
         const token = this.getAuthToken();
         if (!token) {
@@ -957,7 +937,7 @@ class ChikuDesktopApp {
           });
 
           request.on('error', (error) => {
-            console.error('[AI STREAM DEBUG] Request error:', error);
+            console.error('Request error:', error);
             reject(error);
           });
 
@@ -966,7 +946,7 @@ class ChikuDesktopApp {
         });
         
       } catch (error: any) {
-        console.error('[AI STREAM DEBUG] Error getting streaming AI response:', error);
+        console.error('Error getting streaming AI response:', error);
         return { success: false, error: 'Failed to get streaming AI response' };
       }
     });

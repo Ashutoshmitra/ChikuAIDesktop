@@ -1404,6 +1404,83 @@
             text-align: center;
         }
 
+        /* Header Auto AI Toggle */
+        .header-auto-ai-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-left: 12px;
+        }
+
+        .header-auto-ai-label {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* Auto AI Switch Styling */
+        .auto-ai-switch {
+            position: relative;
+            display: inline-block;
+            width: 36px;
+            height: 20px;
+        }
+
+        .auto-ai-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .auto-ai-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .auto-ai-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: all 0.3s ease;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .auto-ai-switch input:checked + .auto-ai-slider {
+            background-color: #c8894a;
+            border-color: #c8894a;
+        }
+
+        .auto-ai-switch input:checked + .auto-ai-slider:before {
+            transform: translateX(16px);
+            background-color: white;
+        }
+
+        .auto-ai-switch:hover .auto-ai-slider {
+            background-color: rgba(200, 137, 74, 0.3);
+        }
+
+        .auto-ai-switch input:checked:hover + .auto-ai-slider {
+            background-color: #b87c42;
+        }
+
         /* Code Block Styling - Completely redesigned */
         .code-block-container {
             margin: 16px 0;
@@ -1791,6 +1868,13 @@
                         oninput="updateTransparency(this.value)"
                     >
                     <span class="header-transparency-value" id="transparencyValue">95%</span>
+                </div>
+                <div class="header-auto-ai-toggle">
+                    <span class="header-auto-ai-label">Auto AI</span>
+                    <label class="auto-ai-switch">
+                        <input type="checkbox" id="autoAIToggleInterview" onchange="toggleAutoAI(this.checked)">
+                        <span class="auto-ai-slider"></span>
+                    </label>
                 </div>
             </div>
             
@@ -2699,6 +2783,9 @@
             // Initialize transparency controls
             initializeTransparencyControls();
             
+            // Initialize Auto AI toggle
+            initializeAutoAIToggle();
+            
             // Request permissions and start transcription
             await requestPermissionsAndStartTranscription();
         }
@@ -3571,6 +3658,29 @@ IMPORTANT:
                 chatInput.disabled = false;
                 chatSendBtn.disabled = false;
                 chatInput.focus();
+            }
+        }
+
+        // Auto AI Toggle Functions
+        function toggleAutoAI(enabled) {
+            isAutoAnswerEnabled = enabled;
+            
+            if (enabled) {
+                addInterviewChatMessage('system', '🤖 Auto AI Answer is now enabled - questions will be automatically answered.');
+            } else {
+                addInterviewChatMessage('system', '🤖 Auto AI Answer is now disabled.');
+            }
+            
+        }
+
+        // Initialize Auto AI toggle state when entering interview mode
+        function initializeAutoAIToggle() {
+            const toggle = document.getElementById('autoAIToggleInterview');
+            if (toggle) {
+                // Sync with the global isAutoAnswerEnabled that was set from session data
+                toggle.checked = isAutoAnswerEnabled;
+                
+                // Update UI to reflect current state without triggering chat message
             }
         }
 
