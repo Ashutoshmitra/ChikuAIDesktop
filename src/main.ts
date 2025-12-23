@@ -364,7 +364,7 @@ class ChikuDesktopApp {
           this.windowReadyForIPC = true;
           this.startSessionTimer();
         }
-      }, 500); // 500ms delay to ensure previous callbacks are complete
+      }, 100); // Reduced delay to minimize dashboard flash
     });
 
     this.isInterviewMode = true;

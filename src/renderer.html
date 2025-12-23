@@ -1482,6 +1482,7 @@
 
         let isAuthenticated = false;
         let currentUser = null;
+        let isInterviewModeInitializing = false;
 
         // Ensure login screen is visible by default
         document.addEventListener('DOMContentLoaded', function() {
@@ -1512,6 +1513,9 @@
             // Listen for mode changes (dashboard/interview)
             window.electronAPI.onModeChanged(({ mode, sessionData }) => {
                 console.log('Mode changed:', { mode, sessionData });
+                if (mode === 'interview') {
+                    isInterviewModeInitializing = true;
+                }
                 handleModeChange(mode, sessionData);
             });
 
@@ -1534,6 +1538,11 @@
         }
 
         function updateUI(authenticated, user) {
+            // Don't show normal UI if interview mode is being initialized
+            if (isInterviewModeInitializing) {
+                return;
+            }
+            
             isAuthenticated = authenticated;
             currentUser = user;
 
@@ -1989,8 +1998,7 @@
                 
                 if (result.success) {
                     console.log('Interview session started successfully');
-                    // Hide activation screen
-                    document.getElementById('sessionActivationScreen').style.display = 'none';
+                    // Don't hide activation screen here - let handleModeChange do it
                 } else {
                     console.error('Failed to start interview session:', result.error);
                     alert('Failed to start interview session. Please try again.');
