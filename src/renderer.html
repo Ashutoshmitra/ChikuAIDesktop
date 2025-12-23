@@ -1065,17 +1065,81 @@
             margin-bottom: 12px;
             padding: 8px 0;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
         }
 
         .interview-transcript-timestamp {
             color: rgba(255, 255, 255, 0.6);
-            font-size: 12px;
-            margin-bottom: 6px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            flex-shrink: 0;
+            padding-top: 2px;
+            min-width: 80px;
         }
 
         .interview-transcript-text {
             color: white;
             font-size: 14px;
+            font-family: 'Courier New', monospace;
+            line-height: 1.5;
+            word-wrap: break-word;
+            overflow-wrap: anywhere;
+        }
+
+        .interview-transcript-partial {
+            color: #60a5fa;
+            font-style: italic;
+            position: relative;
+        }
+
+        .interview-transcript-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 16px;
+            background: #60a5fa;
+            margin-left: 4px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .interview-connection-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+        }
+
+        .interview-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        .interview-status-indicator.connecting {
+            background: #60a5fa;
+        }
+
+        .interview-status-indicator.connected {
+            background: #22c55e;
+        }
+
+        .interview-status-indicator.error {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         /* Transparency Controls */
@@ -1385,9 +1449,9 @@
             <div class="interview-right-panel">
                 <div class="interview-panel-header">Transcript</div>
                 <div class="interview-panel-content" id="interviewTranscriptContent">
-                    <div class="interview-transcript-item">
-                        <div class="interview-transcript-timestamp">Session started...</div>
-                        <div class="interview-transcript-text">Transcript will appear here as you speak or play audio.</div>
+                    <div class="interview-connection-status" id="connectionStatus">
+                        <div class="interview-status-indicator connecting" id="statusIndicator"></div>
+                        <span id="statusText">Initializing...</span>
                     </div>
                 </div>
             </div>
@@ -1990,7 +2054,7 @@
             
             // Add welcome message with session info
             addInterviewChatMessage('system', `Interview session started for ${sessionData.position} at ${sessionData.company}. Good luck!`);
-            addInterviewTranscriptItem('Requesting permissions for microphone and screen access...');
+            updateConnectionStatus('connecting', 'Requesting permissions...');
             
             // Initialize transparency controls
             initializeTransparencyControls();
@@ -2026,7 +2090,7 @@
             try {
                 if (isTranscribing) return;
                 
-                addInterviewTranscriptItem('Starting transcription service...');
+                updateConnectionStatus('connecting', 'Starting transcription service...');
                 
                 // Get AssemblyAI token
                 const tokenResponse = await window.electronAPI.getAssemblyAIToken();
@@ -2052,8 +2116,16 @@
                 assemblyAISocket.onopen = () => {
                     console.log('AssemblyAI WebSocket connected');
                     isTranscribing = true;
-                    addInterviewTranscriptItem('Transcription started. Speak clearly for best results.');
+                    transcriptState.isConnected = true;
+                    transcriptState.isRecording = true;
+                    updateConnectionStatus('connected', 'Connected - Start speaking!');
                     startAudioProcessing();
+                    
+                    // Hide status after a delay to show transcripts
+                    setTimeout(() => {
+                        transcriptState.hasStarted = true;
+                        updateConnectionStatus('connected', 'Connected - Start speaking!');
+                    }, 2000);
                     
                     // Apply transparency after everything is working
                     setTimeout(() => {
@@ -2066,29 +2138,43 @@
                     try {
                         const message = JSON.parse(event.data);
                         
+                        
                         if (message.transcript !== undefined) {
                             if (message.end_of_turn) {
+                                // End of turn - finalize transcript
+                                // With format_turns=true, we get two messages per turn:
+                                // 1. Unformatted (turn_is_formatted: false)  
+                                // 2. Formatted (turn_is_formatted: true)
+                                // Only add the formatted version to avoid duplicates
                                 if (message.turn_is_formatted && message.transcript) {
-                                    // Final transcript
                                     currentTranscripts.push({
                                         id: crypto.randomUUID(),
                                         text: message.transcript,
                                         timestamp: new Date(),
                                     });
-                                    addInterviewTranscriptItem(message.transcript);
+                                    // Convert existing partial to final instead of adding new item
+                                    finalizeCurrentPartial(message.transcript);
                                     
-                                    // Save transcript to database
+                                    // Save transcript to database (but don't block on errors)
                                     if (currentInterviewSessionData?.sessionId) {
                                         const fullTranscript = currentTranscripts.map(t => t.text).join(' ');
-                                        window.electronAPI.saveTranscript(currentInterviewSessionData.sessionId, fullTranscript);
+                                        window.electronAPI.saveTranscript(currentInterviewSessionData.sessionId, fullTranscript)
+                                            .catch(error => {
+                                                console.log('Transcript save failed (continuing):', error.message);
+                                            });
                                     }
+                                } else if (message.end_of_turn) {
+                                    // DON'T clear partial element here - wait for formatted version
                                 }
+                            } else {
+                                // Partial transcript (still being spoken) - exactly like webapp
+                                addInterviewTranscriptItem(message.transcript || '', true);
                             }
                         }
 
                         if (message.type === 'Error') {
                             console.error('AssemblyAI error:', message);
-                            addInterviewTranscriptItem(`Transcription error: ${message.error}`);
+                            updateConnectionStatus('error', `Error: ${message.error}`);
                         }
                     } catch (e) {
                         console.log('Non-JSON message received');
@@ -2097,17 +2183,23 @@
 
                 assemblyAISocket.onerror = (event) => {
                     console.error('WebSocket error:', event);
-                    addInterviewTranscriptItem('Transcription connection error.');
+                    transcriptState.isConnected = false;
+                    updateConnectionStatus('error', 'Connection error occurred');
                 };
 
                 assemblyAISocket.onclose = (event) => {
                     console.log('WebSocket closed:', event.code, event.reason);
                     isTranscribing = false;
+                    transcriptState.isConnected = false;
+                    transcriptState.isRecording = false;
+                    if (event.code !== 1000 && event.code !== 1005) {
+                        updateConnectionStatus('error', `Connection closed: ${event.reason || `Code ${event.code}`}`);
+                    }
                 };
 
             } catch (error) {
                 console.error('Error starting transcription:', error);
-                addInterviewTranscriptItem(`Failed to start transcription: ${error.message}`);
+                updateConnectionStatus('error', `Failed to start: ${error.message}`);
             }
         }
 
@@ -2247,18 +2339,97 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        function addInterviewTranscriptItem(text) {
+        let currentPartialElement = null;
+        let transcriptState = {
+            isConnected: false,
+            isRecording: false,
+            hasStarted: false
+        };
+
+        function updateConnectionStatus(status, text) {
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            const connectionStatus = document.getElementById('connectionStatus');
+            
+            // Remove all status classes
+            statusIndicator.className = 'interview-status-indicator';
+            statusIndicator.classList.add(status);
+            statusText.textContent = text;
+            
+            // Show/hide connection status based on state
+            if (transcriptState.hasStarted && transcriptState.isConnected) {
+                connectionStatus.style.display = 'none';
+            } else {
+                connectionStatus.style.display = 'flex';
+            }
+        }
+
+        function finalizeCurrentPartial(finalText) {
+            if (currentPartialElement) {
+                // Convert partial to final by removing blue styling and cursor
+                const textElement = currentPartialElement.querySelector('.interview-transcript-text');
+                textElement.className = 'interview-transcript-text'; // Remove partial class
+                textElement.innerHTML = finalText; // Remove cursor and update text
+                currentPartialElement = null;
+            } else {
+                // No partial element exists, create new final transcript
+                addInterviewTranscriptItem(finalText, false);
+            }
+        }
+
+        function addInterviewTranscriptItem(text, isPartial = false, timestamp = null) {
             const transcriptContainer = document.getElementById('interviewTranscriptContent');
-            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
-            const transcriptDiv = document.createElement('div');
-            transcriptDiv.className = 'interview-transcript-item';
-            transcriptDiv.innerHTML = `
-                <div class="interview-transcript-timestamp">${timestamp}</div>
-                <div class="interview-transcript-text">${text}</div>
-            `;
+            if (isPartial) {
+                // Handle partial transcript (real-time streaming)
+                if (!currentPartialElement) {
+                    const time = timestamp || new Date().toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit' 
+                    });
+                    
+                    currentPartialElement = document.createElement('div');
+                    currentPartialElement.className = 'interview-transcript-item';
+                    currentPartialElement.innerHTML = `
+                        <div class="interview-transcript-timestamp">${time}</div>
+                        <div class="interview-transcript-text interview-transcript-partial">
+                            ${text}<span class="interview-transcript-cursor"></span>
+                        </div>
+                    `;
+                    transcriptContainer.appendChild(currentPartialElement);
+                } else {
+                    // Update existing partial transcript
+                    const textElement = currentPartialElement.querySelector('.interview-transcript-text');
+                    textElement.innerHTML = `${text}<span class="interview-transcript-cursor"></span>`;
+                }
+            } else {
+                // Handle final transcript
+                if (currentPartialElement) {
+                    // Convert partial to final
+                    const textElement = currentPartialElement.querySelector('.interview-transcript-text');
+                    textElement.className = 'interview-transcript-text';
+                    textElement.innerHTML = text;
+                    currentPartialElement = null;
+                } else {
+                    // Add new final transcript
+                    const time = timestamp || new Date().toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit' 
+                    });
+                    
+                    const transcriptDiv = document.createElement('div');
+                    transcriptDiv.className = 'interview-transcript-item';
+                    transcriptDiv.innerHTML = `
+                        <div class="interview-transcript-timestamp">${time}</div>
+                        <div class="interview-transcript-text">${text}</div>
+                    `;
+                    transcriptContainer.appendChild(transcriptDiv);
+                }
+            }
             
-            transcriptContainer.appendChild(transcriptDiv);
+            // Auto-scroll to bottom
             transcriptContainer.scrollTop = transcriptContainer.scrollHeight;
         }
 

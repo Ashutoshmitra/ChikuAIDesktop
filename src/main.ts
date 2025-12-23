@@ -256,18 +256,21 @@ class ChikuDesktopApp {
     try {
       // Create session via webapp backend API
       const sessionDoc = {
-        sessionId: this.currentSessionId,
         company: sessionData.company,
         position: sessionData.position,
         sessionType: sessionData.sessionType || 'free'
       };
       
-      await this.makeAuthenticatedRequest('/api/desktop-sessions/create', {
+      const response = await this.makeAuthenticatedRequest('/api/desktop-sessions/create', {
         method: 'POST',
         body: JSON.stringify(sessionDoc)
       });
       
-      console.log('Session created via webapp backend:', this.currentSessionId);
+      // Use the sessionId returned by the webapp backend
+      if (response.sessionId) {
+        this.currentSessionId = response.sessionId;
+        console.log('Session created via webapp backend:', this.currentSessionId);
+      }
     } catch (error) {
       console.error('Failed to create session via webapp backend:', error);
       // Continue anyway for offline functionality
@@ -454,18 +457,22 @@ class ChikuDesktopApp {
   
   private async updateSessionMinutes(sessionId: string, minutesUsed: number) {
     try {
-      // Update session via webapp backend API
-      await this.makeAuthenticatedRequest('/api/desktop-sessions/update', {
-        method: 'POST',
-        body: JSON.stringify({
-          sessionId,
-          minutesUsed,
-          endedAt: new Date().toISOString(),
-          status: 'completed'
-        })
-      });
-      
-      console.log(`Session ${sessionId} updated via webapp backend. Minutes used: ${minutesUsed}`);
+      // Only update if we actually have minutes used (webapp doesn't accept 0)
+      if (minutesUsed > 0) {
+        await this.makeAuthenticatedRequest('/api/desktop-sessions/update', {
+          method: 'POST',
+          body: JSON.stringify({
+            sessionId,
+            minutesUsed,
+            endedAt: new Date().toISOString(),
+            status: 'completed'
+          })
+        });
+        
+        console.log(`Session ${sessionId} updated via webapp backend. Minutes used: ${minutesUsed}`);
+      } else {
+        console.log(`Session ${sessionId} ended with 0 minutes - skipping update`);
+      }
     } catch (error) {
       console.error('Error updating session minutes via webapp backend:', error);
     }
