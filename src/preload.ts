@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fetchSessions: () => ipcRenderer.invoke('fetch-sessions'),
   fetchUserData: () => ipcRenderer.invoke('fetch-user-data'),
   fetchResumes: () => ipcRenderer.invoke('fetch-resumes'),
+  fetchResumeById: (resumeId: string) => ipcRenderer.invoke('fetch-resume-by-id', resumeId),
   startInterviewSession: (sessionData: any) => ipcRenderer.invoke('start-interview-session', sessionData),
   endInterviewSession: () => ipcRenderer.invoke('end-interview-session'),
   setWindowOpacity: (opacity: number) => ipcRenderer.invoke('set-window-opacity', opacity),
@@ -28,11 +29,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // AI Chat APIs
   generateAIResponse: (data: any) => ipcRenderer.invoke('generate-ai-response', data),
+  generateAIResponseStream: (data: any) => ipcRenderer.invoke('generate-ai-response-stream', data),
   analyzeScreenContent: (imageData: string) => ipcRenderer.invoke('analyze-screen-content', imageData),
   
   // Session Management APIs
   updateSessionMinutes: (sessionId: string, minutesUsed: number) => ipcRenderer.invoke('update-session-minutes', sessionId, minutesUsed),
   saveTranscript: (sessionId: string, transcript: string) => ipcRenderer.invoke('save-transcript', sessionId, transcript),
+  checkCooldownStatus: () => ipcRenderer.invoke('check-cooldown-status'),
   
   // Listen for auth status changes
   onAuthStatusChanged: (callback: (data: any) => void) => {
@@ -57,5 +60,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Listen for session timer updates
   onSessionTimerUpdate: (callback: (data: any) => void) => {
     ipcRenderer.on('session-timer-update', (event, data) => callback(data));
+  },
+  
+  // Listen for AI response chunks (streaming)
+  onAIResponseChunk: (callback: (chunk: string) => void) => {
+    ipcRenderer.on('ai-response-chunk', (event, chunk) => callback(chunk));
   }
 });

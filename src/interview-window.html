@@ -348,49 +348,62 @@
         let autoScroll = true;
         let isLoading = false;
 
-        // Listen for session data from main process
-        window.electronAPI.onSessionData((data) => {
-            sessionData = data;
-            console.log('Received session data:', sessionData);
-            startSessionTimer();
-            addChatMessage('system', `Interview session started for ${data.position} at ${data.company}. Good luck!`);
-            addTranscriptItem('Audio processing started. Transcript will update as you speak.');
+        // Listen for mode changes from main process
+        window.electronAPI.onModeChanged((data) => {
+            console.log('[MODE DEBUG] Mode change received:', data);
+            if (data.mode === 'interview' && data.sessionData) {
+                sessionData = data.sessionData;
+                sessionStartTime = new Date();
+                console.log('[MODE DEBUG] Interview mode started with session data:', sessionData);
+                addChatMessage('system', `Interview session started for ${data.sessionData.position} at ${data.sessionData.company}. Good luck!`);
+                addTranscriptItem('Audio processing started. Transcript will update as you speak.');
+            }
+        });
+
+        // Listen for timer updates from main process
+        window.electronAPI.onSessionTimerUpdate((timerData) => {
+            console.log('[TIMER DEBUG] Received timer update from main process:', timerData);
+            const timerElement = document.getElementById('sessionTimer');
+            
+            if (timerElement && timerData.display) {
+                timerElement.textContent = timerData.display;
+                console.log('[TIMER DEBUG] Updated timer display to:', timerData.display);
+                
+                // Log timer data for debugging
+                console.log('[TIMER DEBUG] Timer data details:', {
+                    type: timerData.type,
+                    elapsed: timerData.elapsed,
+                    remaining: timerData.remaining,
+                    remainingSeconds: timerData.remainingSeconds
+                });
+                
+                // End session if time is up (safety check)
+                if (timerData.remainingSeconds <= 0) {
+                    console.log('[TIMER DEBUG] Time expired, stopping session');
+                    stopSession();
+                }
+            } else {
+                console.log('[TIMER DEBUG] Timer element not found or no display data');
+            }
         });
 
         function startSessionTimer() {
-            sessionStartTime = new Date();
-            const timerElement = document.getElementById('sessionTimer');
-            
-            sessionTimer = setInterval(() => {
-                if (sessionStartTime) {
-                    const elapsed = Math.floor((new Date() - sessionStartTime) / 1000);
-                    const remaining = Math.max(0, 600 - elapsed); // 10 minutes = 600 seconds
-                    
-                    const minutes = Math.floor(remaining / 60);
-                    const seconds = remaining % 60;
-                    
-                    timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                    
-                    if (remaining <= 0) {
-                        stopSession();
-                    }
-                }
-            }, 1000);
+            // Timer is now handled by main process
+            console.log('[TIMER DEBUG] Timer will be managed by main process');
         }
 
         function stopSession() {
-            if (sessionTimer) {
-                clearInterval(sessionTimer);
-                sessionTimer = null;
-            }
+            console.log('[TIMER DEBUG] Stopping session');
             
             addChatMessage('system', 'Session ended. Thank you for using Chiku AI!');
             addTranscriptItem('Session ended. Thank you for using Chiku AI!');
             
-            // Close window after 2 seconds
-            setTimeout(() => {
-                window.electronAPI.closeInterviewWindow();
-            }, 2000);
+            // End the session via main process
+            window.electronAPI.endInterviewSession().then(() => {
+                console.log('[TIMER DEBUG] Session ended via main process');
+            }).catch((error) => {
+                console.error('[TIMER DEBUG] Error ending session:', error);
+            });
         }
 
         function addChatMessage(type, content) {

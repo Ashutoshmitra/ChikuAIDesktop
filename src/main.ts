@@ -56,6 +56,7 @@ class ChikuDesktopApp {
   private sessionStartTime: Date | null = null;
   private sessionTimer: NodeJS.Timeout | null = null;
   private timerSessionId: string | null = null;
+  private sessionStartingMinutes: number = 0; // Track starting minutes for this session
   
   // Webapp backend configuration
   private readonly WEBAPP_BASE_URL = process.env.WEBAPP_BASE_URL || 'https://www.chiku-ai.in';
@@ -68,6 +69,16 @@ class ChikuDesktopApp {
   private getAuthToken(): string | null {
     const user = this.store.get('user') as any;
     return user?.token || null;
+  }
+  
+  private extractSubscriptionTier(token: string | null): string {
+    if (!token) return 'free';
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      return payload.subscriptionTier || 'free';
+    } catch (error) {
+      return 'free';
+    }
   }
   
   private async makeAuthenticatedRequest(endpoint: string, options: any = {}): Promise<any> {
@@ -253,6 +264,28 @@ class ChikuDesktopApp {
     this.currentSessionId = uuidv4();
     this.sessionStartTime = new Date();
     
+    // Fetch current user data to get starting minutes
+    try {
+      const userDataResponse = await this.makeAuthenticatedRequest('/api/desktop-user');
+      if (userDataResponse.success && userDataResponse.user) {
+        this.sessionStartingMinutes = Number(userDataResponse.user.remainingMinutes) || 0;
+        console.log(`[SESSION DEBUG] Starting session with ${this.sessionStartingMinutes} minutes available`);
+        
+        // Cache for paid users
+        const user = this.store.get('user') as any;
+        const subscriptionTier = user?.subscriptionTier || this.extractSubscriptionTier(user?.token);
+        if (subscriptionTier !== 'free') {
+          this.store.set('cachedRemainingMinutes', this.sessionStartingMinutes);
+        }
+      }
+    } catch (error) {
+      console.log('Error fetching initial user data for session:', error);
+      // Fallback to default minutes based on tier
+      const user = this.store.get('user') as any;
+      const subscriptionTier = user?.subscriptionTier || this.extractSubscriptionTier(user?.token);
+      this.sessionStartingMinutes = subscriptionTier === 'free' ? 10 : 0;
+    }
+    
     try {
       // Create session via webapp backend API
       const sessionDoc = {
@@ -360,7 +393,7 @@ class ChikuDesktopApp {
             opacity: this.mainWindow.getOpacity()
           });
           
-          // Mark window as ready for IPC and start timer
+          // Mark window as ready for IPC first, then start timer
           this.windowReadyForIPC = true;
           this.startSessionTimer();
         }
@@ -387,26 +420,113 @@ class ChikuDesktopApp {
       }
       
       if (this.sessionStartTime && this.currentSessionId) {
-        const elapsed = Math.floor((new Date().getTime() - this.sessionStartTime.getTime()) / 1000 / 60); // minutes
+        const elapsedSeconds = Math.floor((new Date().getTime() - this.sessionStartTime.getTime()) / 1000);
+        const elapsed = Math.floor(elapsedSeconds / 60); // minutes
         
-        // Check if session time limit reached (10 min for free, 60 for paid)
         const user = this.store.get('user') as any;
-        const maxDuration = user?.subscriptionTier === 'free' ? 10 : 60;
         
-        if (elapsed >= maxDuration) {
-          console.log('Session time limit reached, ending session');
-          this.endCurrentSession();
-          return;
+        // Extract subscription tier from JWT token if not in user object
+        let subscriptionTier = user?.subscriptionTier;
+        if (!subscriptionTier && user?.token) {
+          try {
+            const payload = JSON.parse(Buffer.from(user.token.split('.')[1], 'base64').toString());
+            subscriptionTier = payload.subscriptionTier;
+          } catch (error) {
+            console.log(`[TIMER DEBUG] Failed to extract subscriptionTier from JWT:`, error.message);
+          }
         }
         
         // Send timer update to renderer (with comprehensive safety checks)
+        
         if (this.windowReadyForIPC && this.mainWindow && !this.mainWindow.isDestroyed() && 
             this.mainWindow.webContents && !this.mainWindow.webContents.isDestroyed()) {
           try {
-            this.mainWindow.webContents.send('session-timer-update', {
-              elapsed: elapsed,
-              remaining: maxDuration - elapsed
-            });
+            // Use extracted subscription tier, default to free if unknown
+            const userTier = subscriptionTier || 'free';
+            
+            if (userTier === 'free') {
+              // Free users: countdown from their starting minutes
+              const sessionTimeLimitSeconds = this.sessionStartingMinutes * 60; // starting minutes in seconds
+              const remainingSeconds = Math.max(0, sessionTimeLimitSeconds - elapsedSeconds);
+              const remainingMinutes = Math.floor(remainingSeconds / 60);
+              const remainingSecs = remainingSeconds % 60;
+              
+              const timerData = {
+                type: 'free',
+                elapsed: elapsed,
+                remaining: remainingSeconds / 60, // in minutes for compatibility
+                remainingSeconds: remainingSeconds,
+                display: `${remainingMinutes}:${remainingSecs.toString().padStart(2, '0')}`
+              };
+              this.mainWindow.webContents.send('session-timer-update', timerData);
+              
+              // End session when time is up
+              if (remainingSeconds <= 0) {
+                console.log(`Free session time limit (${this.sessionStartingMinutes} minutes) reached, ending session`);
+                this.endCurrentSession();
+                return;
+              }
+            } else {
+              // Paid users: Update remaining minutes in real-time
+              // Update DB every 30 seconds to avoid too many API calls, but show real-time countdown
+              const shouldUpdateDB = elapsedSeconds % 30 === 0 && elapsedSeconds > 0;
+              
+              if (shouldUpdateDB) {
+                try {
+                  // Calculate minutes used in this session so far
+                  const minutesUsedSoFar = Math.floor(elapsedSeconds / 60);
+                  
+                  // Update user's remaining minutes in DB
+                  const updateResponse = await this.makeAuthenticatedRequest('/api/desktop-sessions/update-realtime', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      sessionId: this.currentSessionId,
+                      minutesUsed: minutesUsedSoFar
+                    })
+                  });
+                  
+                  if (updateResponse.success && updateResponse.user) {
+                    // Update cached remaining minutes with latest from DB
+                    const newRemainingMinutes = updateResponse.user.remainingMinutes || 0;
+                    this.store.set('cachedRemainingMinutes', Number(newRemainingMinutes) || 0);
+                    console.log(`[TIMER DEBUG] Updated DB - Minutes used: ${minutesUsedSoFar}, Remaining in DB: ${newRemainingMinutes}`);
+                    
+                    // End session when no minutes remaining
+                    if (newRemainingMinutes <= 0) {
+                      console.log('Paid user minutes exhausted, ending session');
+                      this.endCurrentSession();
+                      return;
+                    }
+                  }
+                } catch (error) {
+                  console.log('Error updating real-time session minutes:', error);
+                  // Continue with cached data for countdown display
+                }
+              }
+              
+              // For paid users, show remaining account time minus elapsed session time (in seconds)
+              const cachedRemainingMinutes = Number(this.store.get('cachedRemainingMinutes')) || 0;
+              const totalAccountSeconds = cachedRemainingMinutes * 60; // Convert account minutes to seconds
+              const remainingSeconds = Math.max(0, totalAccountSeconds - elapsedSeconds); // Subtract elapsed seconds
+              const remainingMins = Math.floor(remainingSeconds / 60);
+              const remainingSecs = remainingSeconds % 60;
+              
+              const timerData = {
+                type: 'paid',
+                elapsed: elapsed,
+                remaining: remainingMins, // remaining minutes for compatibility
+                remainingSeconds: remainingSeconds,
+                display: `${remainingMins}:${remainingSecs.toString().padStart(2, '0')} left`
+              };
+              this.mainWindow.webContents.send('session-timer-update', timerData);
+              
+              // End session when no time remaining
+              if (remainingSeconds <= 0) {
+                console.log('Paid user minutes exhausted during session, ending session');
+                this.endCurrentSession();
+                return;
+              }
+            }
           } catch (error) {
             console.log('Timer update skipped - window communication error:', error.message);
             // If we consistently can't communicate with window, clear the timer
@@ -415,6 +535,8 @@ class ChikuDesktopApp {
               this.clearSessionTimer();
             }
           }
+        } else {
+          console.log('[TIMER DEBUG] Timer update skipped - IPC not ready or window not available');
         }
       } else {
         // No valid session data, clear the timer
@@ -425,7 +547,8 @@ class ChikuDesktopApp {
   }
   
   private clearSessionTimer() {
-    this.windowReadyForIPC = false;
+    // Only set windowReadyForIPC to false when actually ending session, not when restarting timer
+    // this.windowReadyForIPC = false; // REMOVED - this was causing the bug
     if (this.sessionTimer) {
       clearInterval(this.sessionTimer);
       this.sessionTimer = null;
@@ -473,7 +596,13 @@ class ChikuDesktopApp {
       } else {
         console.log(`Session ${sessionId} ended with 0 minutes - skipping update`);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Handle specific error cases
+      if (error.message && error.message.includes('403')) {
+        console.log(`Session ${sessionId} update failed - user has insufficient minutes remaining. This is expected when free users exhaust their time.`);
+        // For free users who exhaust their minutes, we still consider the session successfully ended
+        return;
+      }
       console.error('Error updating session minutes via webapp backend:', error);
     }
   }
@@ -622,6 +751,23 @@ class ChikuDesktopApp {
       }
     });
 
+    // Fetch specific resume by ID
+    ipcMain.handle('fetch-resume-by-id', async (event, resumeId) => {
+      try {
+        if (!resumeId) {
+          return { success: false, error: 'Resume ID is required' };
+        }
+        const response = await this.makeAuthenticatedRequest(`/api/desktop-resume/${resumeId}`);
+        return response;
+      } catch (error) {
+        console.error('Error fetching resume by ID:', error);
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+    });
+
     // Start interview session (transform window)
     ipcMain.handle('start-interview-session', async (event, sessionData) => {
       try {
@@ -725,15 +871,94 @@ class ChikuDesktopApp {
     // OpenAI Chat API - Use webapp backend
     ipcMain.handle('generate-ai-response', async (event, data) => {
       try {
+        console.log('[AI RESPONSE DEBUG] Making request with data:', JSON.stringify(data, null, 2));
+        
         const response = await this.makeAuthenticatedRequest('/api/chat', {
           method: 'POST',
           body: JSON.stringify(data)
         }) as ChatResponse;
         
+        console.log('[AI RESPONSE DEBUG] Got response from backend:', JSON.stringify(response, null, 2));
+        
         return { success: true, response: response.response };
       } catch (error: any) {
-        console.error('Error getting AI response from webapp backend:', error);
+        console.error('[AI RESPONSE DEBUG] Error getting AI response from webapp backend:', error);
         return { success: false, error: 'Failed to get AI response from webapp backend' };
+      }
+    });
+
+    // OpenAI Chat API with streaming - Use webapp backend
+    ipcMain.handle('generate-ai-response-stream', async (event, data) => {
+      try {
+        console.log('[AI STREAM DEBUG] Making streaming request with data:', JSON.stringify(data, null, 2));
+        
+        const token = this.getAuthToken();
+        if (!token) {
+          throw new Error('User not authenticated');
+        }
+
+        const url = `${this.WEBAPP_BASE_URL}/api/chat`;
+        const requestData = { ...data, stream: true };
+        
+        return new Promise((resolve, reject) => {
+          const request = net.request({
+            method: 'POST',
+            url: url
+          });
+
+          request.setHeader('Content-Type', 'application/json');
+          request.setHeader('User-Agent', 'ChikuAI-Desktop/1.0');
+          request.setHeader('Authorization', `Bearer ${token}`);
+
+          let responseData = '';
+
+          request.on('response', (response) => {
+            response.on('data', (chunk) => {
+              responseData += chunk;
+              
+              // Parse streaming data
+              const lines = responseData.split('\n');
+              responseData = lines.pop() || ''; // Keep incomplete line for next chunk
+              
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6);
+                  if (data === '[DONE]') {
+                    resolve({ success: true });
+                    return;
+                  }
+                  try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.content) {
+                      // Send streaming chunk to renderer
+                      if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+                        this.mainWindow.webContents.send('ai-response-chunk', parsed.content);
+                      }
+                    }
+                  } catch (e) {
+                    // Ignore parsing errors
+                  }
+                }
+              }
+            });
+
+            response.on('end', () => {
+              resolve({ success: true });
+            });
+          });
+
+          request.on('error', (error) => {
+            console.error('[AI STREAM DEBUG] Request error:', error);
+            reject(error);
+          });
+
+          request.write(JSON.stringify(requestData));
+          request.end();
+        });
+        
+      } catch (error: any) {
+        console.error('[AI STREAM DEBUG] Error getting streaming AI response:', error);
+        return { success: false, error: 'Failed to get streaming AI response' };
       }
     });
 
@@ -763,6 +988,67 @@ class ChikuDesktopApp {
     // Debug relay from renderer
     ipcMain.handle('debug-log', (event, message) => {
       console.log(`[RENDERER] ${message}`);
+    });
+
+    // Check cooldown status for free users
+    ipcMain.handle('check-cooldown-status', async () => {
+      try {
+        const user = this.store.get('user') as any;
+        if (!user || user.subscriptionTier !== 'free') {
+          return { 
+            success: true, 
+            isInCooldown: false,
+            cooldownInfo: null 
+          };
+        }
+
+        const response = await this.makeAuthenticatedRequest('/api/desktop-user');
+        if (response.success && response.user) {
+          const userData = response.user;
+          
+          // Check if user is in cooldown based on webapp logic
+          const now = new Date();
+          const freeMinutesResetAt = userData.freeMinutesResetAt ? new Date(userData.freeMinutesResetAt) : null;
+          const isInCooldown = freeMinutesResetAt && now < freeMinutesResetAt;
+          
+          let cooldownInfo = null;
+          if (isInCooldown && freeMinutesResetAt) {
+            const remainingCooldownMs = freeMinutesResetAt.getTime() - now.getTime();
+            const remainingCooldownMinutes = Math.ceil(remainingCooldownMs / (1000 * 60));
+            const remainingCooldownSeconds = Math.ceil(remainingCooldownMs / 1000) % 60;
+            
+            cooldownInfo = {
+              resetAt: freeMinutesResetAt.toISOString(),
+              remainingMs: remainingCooldownMs,
+              remainingMinutes: remainingCooldownMinutes,
+              remainingSeconds: remainingCooldownSeconds,
+              display: `${remainingCooldownMinutes}:${remainingCooldownSeconds.toString().padStart(2, '0')}`
+            };
+          }
+          
+          return {
+            success: true,
+            isInCooldown,
+            cooldownInfo,
+            remainingMinutes: userData.remainingMinutes || 0
+          };
+        }
+        
+        return { 
+          success: false, 
+          error: 'Failed to fetch user data',
+          isInCooldown: false,
+          cooldownInfo: null 
+        };
+      } catch (error: any) {
+        console.error('Error checking cooldown status:', error);
+        return { 
+          success: false, 
+          error: error.message,
+          isInCooldown: false,
+          cooldownInfo: null 
+        };
+      }
     });
 
     // Session Management APIs - Use webapp backend

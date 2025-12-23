@@ -162,6 +162,19 @@
             font-size: 12px;
             font-weight: 500;
         }
+        
+        .header-cooldown-timer {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #fbbf24;
+            font-size: 11px;
+            margin-left: 4px;
+            display: none;
+        }
+        
+        .header-cooldown-timer.show {
+            display: inline;
+        }
 
         .credits-icon {
             width: 12px;
@@ -1219,6 +1232,57 @@
             background: rgba(0, 0, 0, 0.9);
         }
 
+        /* Cooldown notification styles */
+        .cooldown-notification {
+            background: #fbbf24;
+            color: #1f2937;
+            padding: 6px 12px;
+            margin: 8px 20px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            display: none;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #f59e0b;
+            max-height: 40px;
+        }
+
+        .cooldown-notification.show {
+            display: flex;
+        }
+
+        .cooldown-icon {
+            font-size: 14px;
+        }
+
+        .cooldown-text {
+            flex: 1;
+        }
+
+        .cooldown-timer {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            background: #1f2937;
+            color: #fbbf24;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        .session-option.cooldown-disabled {
+            background: #f3f4f6;
+            color: #9ca3af;
+            cursor: not-allowed;
+            border-color: #d1d5db;
+            opacity: 0.6;
+        }
+
+        .session-option.cooldown-disabled:hover {
+            border-color: #d1d5db;
+            box-shadow: none;
+        }
+
 
     </style>
 </head>
@@ -1262,6 +1326,7 @@
                     <div class="credits-badge">
                         <div class="credits-icon"></div>
                         <span id="creditsCount">No Credits</span>
+                        <span id="headerCooldownTimer" class="header-cooldown-timer"></span>
                     </div>
                     <button class="menu-btn" onclick="toggleMenu()">⋯</button>
                     <div id="menuDropdown" class="menu-dropdown">
@@ -1292,6 +1357,13 @@
 
                 <div class="tab-content">
                     <div id="createTab" class="tab-panel active">
+                        <!-- Cooldown notification for free users -->
+                        <div id="cooldownNotification" class="cooldown-notification">
+                            <div class="cooldown-icon">⏰</div>
+                            <div class="cooldown-text">Free session cooldown active. Next session available in:</div>
+                            <div class="cooldown-timer" id="cooldownTimer">--:--</div>
+                        </div>
+                        
                         <div class="session-type-label">
                             Select Session Type
                             <div class="info-icon">i</div>
@@ -1395,13 +1467,13 @@
                 <div class="session-timer-icon">⏰</div>
                 <div class="session-timer-text">This is a 10 minute free session.</div>
                 <div class="session-warning-text">
-                    You won't be able to create another free session for the next 15 minutes.
+                    You won't be able to create another free session for the next 12 minutes.
                 </div>
             </div>
             
             <div class="mock-interview-info">
                 <div class="mock-interview-title">
-                    📱 Instead of an interview tab, you can also share a mock interview on YouTube and test ParakeetAI that way.
+                    📱 Instead of an interview tab, you can also share a mock interview on YouTube and test Chiku AI that way.
                 </div>
                 <div class="mock-interview-description">
                     Example video: <span class="example-video-link" onclick="openExampleVideo()">Mock Interview</span>
@@ -1519,17 +1591,52 @@
                 handleModeChange(mode, sessionData);
             });
 
-            // Listen for session timer updates (if available)
-            if (window.electronAPI.onSessionTimerUpdate) {
-                window.electronAPI.onSessionTimerUpdate((timerData) => {
-                    const timerElement = document.getElementById('sessionTimerInterview');
-                    if (timerElement && timerData.remaining !== undefined) {
-                        const minutes = Math.floor(timerData.remaining);
-                        const seconds = Math.floor((timerData.remaining - minutes) * 60);
-                        timerElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            // Listen for AI response chunks (streaming)
+            window.electronAPI.onAIResponseChunk((chunk) => {
+                console.log('[STREAMING DEBUG] Received chunk for message:', currentStreamingMessageId, 'chunk:', chunk);
+                
+                if (currentStreamingMessageId && streamingMessages.has(currentStreamingMessageId)) {
+                    // Get the current content for this specific message and append the chunk
+                    const currentContent = streamingMessages.get(currentStreamingMessageId);
+                    const updatedContent = currentContent + chunk;
+                    streamingMessages.set(currentStreamingMessageId, updatedContent);
+                    
+                    console.log('[STREAMING DEBUG] Updating message with content:', updatedContent);
+                    updateInterviewChatMessage(currentStreamingMessageId, updatedContent);
+                }
+            });
+
+            // Listen for session timer updates
+            console.log('Setting up session timer listener...');
+            window.electronAPI.onSessionTimerUpdate((timerData) => {
+                console.log('Timer update received:', timerData);
+                const timerElement = document.getElementById('sessionTimerInterview');
+                if (timerElement && timerData) {
+                    // Use the display format from main.ts which handles both free and paid users
+                    if (timerData.display) {
+                        console.log('Updating timer display to:', timerData.display);
+                        timerElement.textContent = timerData.display;
+                    } else {
+                        // Fallback to old format if display not provided
+                        const minutes = Math.floor(timerData.remaining || 0);
+                        const seconds = Math.floor(((timerData.remaining || 0) - minutes) * 60);
+                        const displayText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        console.log('Updating timer fallback display to:', displayText);
+                        timerElement.textContent = displayText;
                     }
-                });
-            }
+                    
+                    // Add visual warning when time is running low
+                    if (timerData.type === 'free' && timerData.remainingSeconds && timerData.remainingSeconds < 60) {
+                        timerElement.style.color = '#ef4444'; // Red when under 1 minute
+                    } else if (timerData.type === 'paid' && timerData.remaining && timerData.remaining < 5) {
+                        timerElement.style.color = '#ef4444'; // Red when under 5 minutes for paid
+                    } else {
+                        timerElement.style.color = 'white'; // Normal color
+                    }
+                } else {
+                    console.log('Timer element not found or no timer data');
+                }
+            });
 
         } else {
             console.error('electronAPI not available');
@@ -1644,7 +1751,22 @@
             loadResumes();
         }
 
-        function showFreeSession() {
+        async function showFreeSession() {
+            // Check if user is in cooldown first
+            try {
+                if (window.electronAPI) {
+                    const cooldownResponse = await window.electronAPI.checkCooldownStatus();
+                    if (cooldownResponse.success && cooldownResponse.isInCooldown) {
+                        // User is in cooldown, show alert and don't proceed
+                        const remainingTime = cooldownResponse.cooldownInfo?.display || 'unknown time';
+                        alert(`Free session is on cooldown. Please wait ${remainingTime} before starting another session.`);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking cooldown before starting session:', error);
+            }
+            
             showResumeSelection();
         }
 
@@ -1690,11 +1812,202 @@
                                 actionBtn.style.background = '#374151'; // Dark gray background for buy credits
                             }
                         }
+                        
+                        // Check cooldown status for free users
+                        if (user.subscriptionTier === 'free') {
+                            console.log('[DEBUG] User remaining minutes from loadUserData:', user.remainingMinutes);
+                            await checkAndDisplayCooldown(user);
+                        }
                     }
                 }
             } catch (error) {
                 console.error('Error loading user data:', error);
             }
+        }
+
+        let cooldownTimer = null;
+
+        async function checkAndDisplayCooldown(userData = null) {
+            console.log('[COOLDOWN DEBUG] Checking cooldown status...');
+            try {
+                if (window.electronAPI) {
+                    // Use userData if provided, otherwise fetch from API
+                    let userInfo = userData;
+                    if (!userInfo) {
+                        const userDataResponse = await window.electronAPI.fetchUserData();
+                        if (userDataResponse.success) {
+                            userInfo = userDataResponse.user;
+                        }
+                    }
+                    
+                    console.log('[COOLDOWN DEBUG] User info:', userInfo);
+                    
+                    if (userInfo && userInfo.subscriptionTier === 'free') {
+                        const cooldownNotification = document.getElementById('cooldownNotification');
+                        const freeSessionOption = document.querySelector('.session-option');
+                        
+                        const now = new Date();
+                        const remainingMinutes = userInfo.remainingMinutes || 0;
+                        const freeMinutesResetAt = userInfo.freeMinutesResetAt ? new Date(userInfo.freeMinutesResetAt) : null;
+                        const freeMinutesExhaustedAt = userInfo.freeMinutesExhaustedAt ? new Date(userInfo.freeMinutesExhaustedAt) : null;
+                        
+                        // Determine if user is in cooldown
+                        const isInCooldown = remainingMinutes === 0 && freeMinutesResetAt && now < freeMinutesResetAt;
+                        
+                        console.log('[COOLDOWN DEBUG] Remaining minutes:', remainingMinutes);
+                        console.log('[COOLDOWN DEBUG] Is in cooldown?', isInCooldown);
+                        console.log('[COOLDOWN DEBUG] Reset at:', freeMinutesResetAt);
+                        
+                        const headerCooldownTimer = document.getElementById('headerCooldownTimer');
+                        
+                        if (remainingMinutes === 0) {
+                            console.log('[COOLDOWN DEBUG] Showing cooldown in header - Minutes exhausted');
+                            
+                            // Hide the yellow banner (we don't want it anymore)
+                            if (cooldownNotification) {
+                                cooldownNotification.classList.remove('show');
+                            }
+                            
+                            // Show header cooldown timer
+                            if (headerCooldownTimer) {
+                                headerCooldownTimer.classList.add('show');
+                            }
+                            
+                            // Disable free session option
+                            if (freeSessionOption) {
+                                freeSessionOption.classList.add('cooldown-disabled');
+                                freeSessionOption.onclick = null; // Disable click
+                                freeSessionOption.innerHTML = 'Free Session (Cooldown)';
+                            }
+                            
+                            // Start cooldown timer in header
+                            if (isInCooldown && freeMinutesResetAt) {
+                                startHeaderCooldownTimer(freeMinutesResetAt);
+                            } else {
+                                // User has 0 minutes but no active cooldown timer from server
+                                if (headerCooldownTimer) {
+                                    headerCooldownTimer.textContent = "(next session)";
+                                }
+                            }
+                        } else {
+                            // Hide cooldown timer from header
+                            if (headerCooldownTimer) {
+                                headerCooldownTimer.classList.remove('show');
+                            }
+                            
+                            // Hide yellow banner
+                            if (cooldownNotification) {
+                                cooldownNotification.classList.remove('show');
+                            }
+                            
+                            // Enable free session option
+                            if (freeSessionOption) {
+                                freeSessionOption.classList.remove('cooldown-disabled');
+                                freeSessionOption.onclick = () => showFreeSession(); // Re-enable click
+                                freeSessionOption.innerHTML = 'Free Session';
+                            }
+                            
+                            // Clear any existing cooldown timer
+                            if (cooldownTimer) {
+                                clearInterval(cooldownTimer);
+                                cooldownTimer = null;
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking cooldown status:', error);
+            }
+        }
+
+        function startCooldownTimer(cooldownInfo) {
+            // Clear any existing timer
+            if (cooldownTimer) {
+                clearInterval(cooldownTimer);
+            }
+            
+            const cooldownTimerElement = document.getElementById('cooldownTimer');
+            const resetAt = new Date(cooldownInfo.resetAt);
+            
+            cooldownTimer = setInterval(async () => {
+                const now = new Date();
+                const remainingMs = resetAt.getTime() - now.getTime();
+                
+                if (remainingMs <= 0) {
+                    // Cooldown expired, refresh the status
+                    clearInterval(cooldownTimer);
+                    cooldownTimer = null;
+                    await checkAndDisplayCooldown();
+                    return;
+                }
+                
+                const remainingMinutes = Math.floor(remainingMs / (1000 * 60));
+                const remainingSeconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
+                
+                if (cooldownTimerElement) {
+                    cooldownTimerElement.textContent = `${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
+        }
+
+        function startHeaderCooldownTimer(resetAt) {
+            // Clear any existing timer
+            if (cooldownTimer) {
+                clearInterval(cooldownTimer);
+            }
+            
+            const headerCooldownTimer = document.getElementById('headerCooldownTimer');
+            const resetDate = new Date(resetAt);
+            
+            cooldownTimer = setInterval(async () => {
+                const now = new Date();
+                const remainingMs = resetDate.getTime() - now.getTime();
+                
+                if (remainingMs <= 0) {
+                    // Cooldown expired, refresh the status
+                    clearInterval(cooldownTimer);
+                    cooldownTimer = null;
+                    await checkAndDisplayCooldown();
+                    return;
+                }
+                
+                const remainingMinutes = Math.floor(remainingMs / (1000 * 60));
+                const remainingSeconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
+                
+                if (headerCooldownTimer) {
+                    headerCooldownTimer.textContent = `(${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')})`;
+                }
+            }, 1000);
+        }
+        
+        function startCooldownTimerWithResetAt(resetAt) {
+            // Clear any existing timer
+            if (cooldownTimer) {
+                clearInterval(cooldownTimer);
+            }
+            
+            const cooldownTimerElement = document.getElementById('cooldownTimer');
+            const resetDate = new Date(resetAt);
+            
+            cooldownTimer = setInterval(async () => {
+                const now = new Date();
+                const remainingMs = resetDate.getTime() - now.getTime();
+                
+                if (remainingMs <= 0) {
+                    // Cooldown expired, refresh the status
+                    clearInterval(cooldownTimer);
+                    cooldownTimer = null;
+                    await checkAndDisplayCooldown();
+                    return;
+                }
+                
+                const remainingMinutes = Math.floor(remainingMs / (1000 * 60));
+                const remainingSeconds = Math.floor((remainingMs % (1000 * 60)) / 1000);
+                
+                if (cooldownTimerElement) {
+                    cooldownTimerElement.textContent = `${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
         }
 
         async function loadSessions() {
@@ -1966,7 +2279,7 @@
             if (isFreeSession) {
                 activateButton.textContent = 'Activate (Free)';
                 sessionTimerText.textContent = 'This is a 10 minute free session.';
-                sessionWarningText.textContent = "You won't be able to create another free session for the next 15 minutes.";
+                sessionWarningText.textContent = "You won't be able to create another free session for the next 12 minutes.";
             } else {
                 activateButton.textContent = 'Create Session';
                 sessionTimerText.textContent = 'This is a paid session.';
@@ -2043,6 +2356,13 @@
                         dashboard.style.display = 'flex';
                         dashboard.style.flexDirection = 'column';
                     }
+                    
+                    // Refresh user data and check cooldown when returning to dashboard
+                    console.log('[DASHBOARD] Returning to dashboard, refreshing data and checking cooldown');
+                    setTimeout(async () => {
+                        await loadUserData();
+                        await loadSessions();
+                    }, 500); // Small delay to ensure UI is ready
                 } else {
                     if (loginContainer) loginContainer.style.display = 'flex';
                 }
@@ -2051,8 +2371,14 @@
 
         // Interview mode variables
         let currentInterviewSessionData = null;
+        let currentResumeData = null; // Store fetched resume data for AI context
         let isTranscribing = false;
         let assemblyAISocket = null;
+        let isAutoAnswerEnabled = false;
+        let answeredQuestions = new Set();
+        let currentStreamingMessageId = null;
+        let streamingMessages = new Map(); // Track content per message ID
+        let transcriptSegments = [];
         let audioContext = null;
         let mediaStream = null;
         let currentTranscripts = [];
@@ -2060,8 +2386,37 @@
         async function initializeInterviewSession(sessionData) {
             currentInterviewSessionData = sessionData;
             
+            // Fetch resume data if resumeId is provided
+            if (sessionData.resumeId) {
+                console.log('[RESUME] Fetching resume data for ID:', sessionData.resumeId);
+                try {
+                    const resumeResponse = await window.electronAPI.fetchResumeById(sessionData.resumeId);
+                    if (resumeResponse.success) {
+                        currentResumeData = resumeResponse.resume;
+                        console.log('[RESUME] Resume data loaded:', currentResumeData.fileName);
+                        addInterviewChatMessage('system', `📄 Resume loaded: ${currentResumeData.fileName}`);
+                    } else {
+                        console.error('[RESUME] Failed to fetch resume:', resumeResponse.error);
+                        addInterviewChatMessage('system', '⚠️ Failed to load selected resume');
+                    }
+                } catch (error) {
+                    console.error('[RESUME] Error fetching resume:', error);
+                    addInterviewChatMessage('system', '⚠️ Error loading resume data');
+                }
+            } else {
+                console.log('[RESUME] No resume selected for this session');
+                currentResumeData = null;
+            }
+            
+            // Set Auto AI state from session data
+            isAutoAnswerEnabled = sessionData.autoAnswer || false;
+            console.log('[AUTO AI] Auto Answer enabled:', isAutoAnswerEnabled);
+            
             // Add welcome message with session info
             addInterviewChatMessage('system', `Interview session started for ${sessionData.position} at ${sessionData.company}. Good luck!`);
+            if (isAutoAnswerEnabled) {
+                addInterviewChatMessage('system', '🤖 Auto AI Answer is enabled - questions will be automatically answered.');
+            }
             updateConnectionStatus('connecting', 'Requesting permissions...');
             
             // Initialize transparency controls
@@ -2069,6 +2424,30 @@
             
             // Request permissions and start transcription
             await requestPermissionsAndStartTranscription();
+        }
+
+        // Helper function to build AI context with resume data (like webapp)
+        function buildAIContextMessage(baseMessage) {
+            let contextMessage = baseMessage;
+            
+            // Add resume context if available (similar to webapp implementation)
+            if (currentResumeData) {
+                contextMessage += `\n\nCONTEXT FROM RESUME:
+Name: ${currentResumeData.personalDetails?.fullName || 'Not provided'}
+Email: ${currentResumeData.personalDetails?.email || 'Not provided'}
+Phone: ${currentResumeData.personalDetails?.phone || 'Not provided'}
+Location: ${currentResumeData.personalDetails?.location || 'Not provided'}
+
+Introduction: ${currentResumeData.introduction || 'Not provided'}
+
+Education: ${JSON.stringify(currentResumeData.education) || 'Not provided'}
+
+Job Experience: ${JSON.stringify(currentResumeData.jobExperience) || 'Not provided'}
+
+Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not provided'}`;
+            }
+            
+            return contextMessage;
         }
 
         async function requestPermissionsAndStartTranscription() {
@@ -2162,6 +2541,16 @@
                                     });
                                     // Convert existing partial to final instead of adding new item
                                     finalizeCurrentPartial(message.transcript);
+                                    
+                                    // Check for Auto AI answer if enabled
+                                    if (isAutoAnswerEnabled && message.transcript.trim()) {
+                                        console.log('[AUTO AI] Auto answer is enabled, analyzing transcript for questions:', message.transcript);
+                                        analyzeTranscriptForQuestions(message.transcript);
+                                    } else if (!isAutoAnswerEnabled) {
+                                        console.log('[AUTO AI] Auto answer is disabled, skipping question check');
+                                    } else {
+                                        console.log('[AUTO AI] Empty transcript, skipping question check');
+                                    }
                                     
                                     // Save transcript to database (but don't block on errors)
                                     if (currentInterviewSessionData?.sessionId) {
@@ -2324,27 +2713,57 @@
             }
         }
 
-        function addInterviewChatMessage(type, content) {
+        function addInterviewChatMessage(type, content, messageId = null) {
             const messagesContainer = document.getElementById('interviewChatMessages');
             const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
             const messageDiv = document.createElement('div');
             messageDiv.className = `interview-chat-message ${type}-message`;
+            if (messageId) {
+                messageDiv.id = messageId;
+            }
+            
+            const renderedContent = renderMarkdown(content);
             
             if (type === 'ai') {
                 messageDiv.innerHTML = `
-                    <div><strong>AI:</strong> ${content}</div>
+                    <div><strong>AI:</strong> ${renderedContent}</div>
                     <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">${timestamp}</div>
                 `;
             } else {
                 messageDiv.innerHTML = `
-                    <div>${content}</div>
+                    <div>${renderedContent}</div>
                     <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">${timestamp}</div>
                 `;
             }
             
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        function updateInterviewChatMessage(messageId, content) {
+            const messageDiv = document.getElementById(messageId);
+            if (messageDiv) {
+                const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const renderedContent = renderMarkdown(content);
+                
+                if (messageDiv.classList.contains('ai-message')) {
+                    messageDiv.innerHTML = `
+                        <div><strong>AI:</strong> ${renderedContent}</div>
+                        <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">${timestamp}</div>
+                    `;
+                } else {
+                    messageDiv.innerHTML = `
+                        <div>${renderedContent}</div>
+                        <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">${timestamp}</div>
+                    `;
+                }
+                
+                const messagesContainer = document.getElementById('interviewChatMessages');
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
         }
 
         let currentPartialElement = null;
@@ -2382,6 +2801,140 @@
             } else {
                 // No partial element exists, create new final transcript
                 addInterviewTranscriptItem(finalText, false);
+            }
+        }
+
+        // Simple markdown renderer
+        function renderMarkdown(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>');
+        }
+
+        // Auto AI Answer Functions
+        async function analyzeTranscriptForQuestions(transcript) {
+            console.log('[AUTO AI] analyzeTranscriptForQuestions called with:', transcript);
+            
+            const questionKeywords = [
+                'what', 'how', 'why', 'when', 'where', 'who', 'which', 'would you', 
+                'can you', 'could you', 'tell me', 'describe', 'explain', 'share',
+                'what are', 'what is', 'how do', 'why did', 'can you tell'
+            ];
+
+            const normalizedTranscript = transcript.toLowerCase().trim();
+            console.log('[AUTO AI] Normalized transcript:', normalizedTranscript);
+            
+            // Check if it's likely a question
+            const endsWithQuestionMark = normalizedTranscript.endsWith('?');
+            const containsQuestionKeywords = questionKeywords.some(keyword => 
+                normalizedTranscript.includes(keyword.toLowerCase())
+            );
+            
+            console.log('[AUTO AI] Question analysis:', {
+                endsWithQuestionMark,
+                containsQuestionKeywords,
+                isQuestion: endsWithQuestionMark || containsQuestionKeywords
+            });
+            
+            if (endsWithQuestionMark || containsQuestionKeywords) {
+                const questionHash = btoa(transcript).substring(0, 10); // Simple hash for deduplication
+                
+                if (!answeredQuestions.has(questionHash)) {
+                    console.log('[AUTO AI] New question detected:', transcript);
+                    console.log('[AUTO AI] Question hash:', questionHash);
+                    console.log('[AUTO AI] Previously answered questions:', Array.from(answeredQuestions));
+                    answeredQuestions.add(questionHash);
+                    
+                    // Add slight delay to feel natural
+                    setTimeout(() => {
+                        autoAnswerQuestion(transcript);
+                    }, 1500);
+                } else {
+                    console.log('[AUTO AI] Question already answered, skipping:', transcript);
+                }
+            }
+        }
+
+        async function autoAnswerQuestion(questionText) {
+            console.log('[AUTO AI] Generating streaming answer for:', questionText);
+            
+            try {
+                // Create a unique message ID for this streaming response
+                const messageId = `ai-message-${Date.now()}`;
+                currentStreamingMessageId = messageId;
+                
+                // Initialize streaming content for this specific message
+                const initialContent = `**Q:** ${questionText}\n\n**A:** `;
+                streamingMessages.set(messageId, initialContent);
+                
+                // Add initial message with question and empty answer
+                addInterviewChatMessage('ai', initialContent, messageId);
+                
+                // Build context message similar to webapp
+                let baseContextMessage = `You are responding as the interviewee in a job interview${currentInterviewSessionData?.company && currentInterviewSessionData?.position ? ` for the position of ${currentInterviewSessionData.position} at ${currentInterviewSessionData.company}` : ''}. Provide a direct, professional response that the candidate can read word-for-word to answer this question: "${questionText}". 
+
+IMPORTANT: 
+- Give ONLY the response the interviewee should say, not advice about what to say
+- Make it sound natural and conversational, as if spoken by a real person
+- Keep it concise but complete (2-4 sentences max)
+- Do not use bullet points or markdown formatting
+- Do not start with phrases like "Here's a professional response" or "You should say"
+- Just give the direct answer the person should speak${currentInterviewSessionData?.company && currentInterviewSessionData?.position ? `\n- Tailor your response to the ${currentInterviewSessionData.position} role at ${currentInterviewSessionData.company}` : ''}`;
+
+                // Add resume context to the message
+                const contextMessage = buildAIContextMessage(baseContextMessage);
+                console.log('[AUTO AI] Making streaming API call with context (including resume):', contextMessage);
+                
+                // Use streaming API
+                const response = await window.electronAPI.generateAIResponseStream({
+                    transcript: '',
+                    message: contextMessage,
+                    isCoding: false
+                });
+                
+                console.log('[AUTO AI] Streaming response completed:', response);
+                
+                // Cleanup streaming state for this message
+                streamingMessages.delete(messageId);
+                currentStreamingMessageId = null;
+                
+            } catch (error) {
+                console.error('[AUTO AI] Error generating streaming answer:', error);
+                if (currentStreamingMessageId) {
+                    const errorMessage = `**Q:** ${questionText}\n\n**A:** Sorry, I couldn't generate an answer right now. Please respond manually.`;
+                    updateInterviewChatMessage(currentStreamingMessageId, errorMessage);
+                    streamingMessages.delete(currentStreamingMessageId);
+                }
+                currentStreamingMessageId = null;
+            }
+        }
+
+        function updateLastAIMessage(newContent) {
+            console.log('[AUTO AI] updateLastAIMessage called with:', newContent);
+            
+            const chatContainer = document.getElementById('interviewChatMessages');
+            if (!chatContainer) {
+                console.error('[AUTO AI] Chat container not found');
+                return;
+            }
+            
+            const messages = chatContainer.querySelectorAll('.interview-chat-message');
+            const lastMessage = messages[messages.length - 1];
+            
+            console.log('[AUTO AI] Found', messages.length, 'messages, last message:', lastMessage);
+            
+            if (lastMessage && lastMessage.classList.contains('ai-message')) {
+                console.log('[AUTO AI] Updating last AI message');
+                const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                lastMessage.innerHTML = `
+                    <div><strong>AI:</strong> ${newContent}</div>
+                    <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">${timestamp}</div>
+                `;
+                console.log('[AUTO AI] Message updated successfully');
+            } else {
+                console.error('[AUTO AI] Last message is not an AI message or no messages found');
             }
         }
 
@@ -2457,22 +3010,40 @@
                     return;
                 }
 
-                // Generate AI response using transcript
-                const response = await window.electronAPI.generateAIResponse({
+                // Create a unique message ID for this streaming response
+                const messageId = `ai-manual-${Date.now()}`;
+                currentStreamingMessageId = messageId;
+                
+                // Initialize empty content for manual AI answer
+                streamingMessages.set(messageId, '');
+                
+                // Add initial AI message
+                addInterviewChatMessage('ai', '', messageId);
+                
+                // Generate AI response using streaming transcript
+                const baseMessage = `Extract the most recent question from this transcript and provide a professional interview answer: ${fullTranscript}`;
+                const contextMessage = buildAIContextMessage(baseMessage);
+                const response = await window.electronAPI.generateAIResponseStream({
                     transcript: fullTranscript,
-                    message: `Extract the most recent question from this transcript and provide a professional interview answer: ${fullTranscript}`,
+                    message: contextMessage,
                     isCoding: false
                 });
-
-                if (response.success) {
-                    addInterviewChatMessage('ai', response.response);
-                } else {
-                    addInterviewChatMessage('system', `Error generating AI answer: ${response.error}`);
+                
+                if (!response.success) {
+                    updateInterviewChatMessage(messageId, `Error generating AI answer: ${response.error}`);
                 }
+                
+                // Cleanup streaming state for this message
+                streamingMessages.delete(messageId);
+                currentStreamingMessageId = null;
                 
             } catch (error) {
                 console.error('Error with AI Answer:', error);
-                addInterviewChatMessage('system', 'Error generating AI answer. Please try again.');
+                if (currentStreamingMessageId) {
+                    updateInterviewChatMessage(currentStreamingMessageId, 'Error generating AI answer. Please try again.');
+                    streamingMessages.delete(currentStreamingMessageId);
+                }
+                currentStreamingMessageId = null;
             } finally {
                 btn.classList.remove('active');
             }
@@ -2502,8 +3073,10 @@
                         
                         // Generate AI answer for the detected question
                         const fullTranscript = currentTranscripts.map(t => t.text).join(' ');
+                        const baseMessage = analysisResult.question;
+                        const contextMessage = buildAIContextMessage(baseMessage);
                         const aiResponse = await window.electronAPI.generateAIResponse({
-                            message: analysisResult.question,
+                            message: contextMessage,
                             transcript: fullTranscript,
                             isCoding: analysisResult.isCoding || false
                         });
