@@ -3256,21 +3256,31 @@ IMPORTANT:
                     if (analysisResult.question && analysisResult.question !== "No questions found on screen.") {
                         addInterviewChatMessage('system', `Question detected: ${analysisResult.question}`);
                         
-                        // Generate AI answer for the detected question
+                        // Generate unique message ID for streaming
+                        const messageId = `ai-msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                        currentStreamingMessageId = messageId;
+                        streamingMessages.set(messageId, '');
+                        
+                        // Add empty AI message for streaming
+                        addInterviewChatMessage('ai', '', messageId);
+                        
+                        // Generate AI answer using streaming for the detected question
                         const fullTranscript = currentTranscripts.map(t => t.text).join(' ');
                         const baseMessage = analysisResult.question;
                         const contextMessage = buildAIContextMessage(baseMessage);
-                        const aiResponse = await window.electronAPI.generateAIResponse({
+                        const response = await window.electronAPI.generateAIResponseStream({
                             message: contextMessage,
                             transcript: fullTranscript,
                             isCoding: analysisResult.isCoding || false
                         });
-
-                        if (aiResponse.success) {
-                            addInterviewChatMessage('ai', aiResponse.response);
-                        } else {
-                            addInterviewChatMessage('system', 'Generated answer but failed to process it.');
+                        
+                        if (!response.success) {
+                            updateInterviewChatMessage(messageId, `Error generating AI answer: ${response.error}`);
                         }
+                        
+                        // Cleanup streaming state for this message
+                        streamingMessages.delete(messageId);
+                        currentStreamingMessageId = null;
                     } else {
                         addInterviewChatMessage('system', 'Screen analysis complete. No interview questions detected on screen.');
                     }
@@ -3281,6 +3291,12 @@ IMPORTANT:
             } catch (error) {
                 console.error('Error with screen analysis:', error);
                 addInterviewChatMessage('system', 'Error analyzing screen content. Please try again.');
+                
+                // Cleanup streaming state if error occurred
+                if (currentStreamingMessageId) {
+                    streamingMessages.delete(currentStreamingMessageId);
+                    currentStreamingMessageId = null;
+                }
             } finally {
                 btn.classList.remove('active');
             }
