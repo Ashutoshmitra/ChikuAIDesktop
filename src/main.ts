@@ -236,9 +236,8 @@ class ChikuDesktopApp {
       },
       resizable: false,
       title: 'Chiku AI Desktop',
-      titleBarStyle: 'default',
       transparent: false,
-      frame: true,
+      frame: false,
       skipTaskbar: false,
       alwaysOnTop: false
     });
@@ -628,9 +627,8 @@ class ChikuDesktopApp {
       },
       resizable: false,
       title: 'Chiku AI Desktop',
-      titleBarStyle: 'default',
       transparent: false,
-      frame: true,
+      frame: false,
       skipTaskbar: false,
       alwaysOnTop: false
     });

@@ -19,6 +19,7 @@
             margin: 0;
             padding: 0;
             overflow: hidden;
+            border-radius: 12px;
         }
 
         body.interview-mode {
@@ -30,6 +31,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            -webkit-app-region: drag;
         }
 
         #loginScreen {
@@ -80,6 +82,7 @@
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
+            -webkit-app-region: no-drag;
         }
 
         .login-btn:hover {
@@ -115,6 +118,7 @@
             background: #f9fafb;
             color: #1f2937;
             overflow: hidden;
+            border-radius: 12px;
         }
 
         .header {
@@ -124,6 +128,8 @@
             padding: 12px 16px;
             background: white;
             border-bottom: 1px solid #e5e7eb;
+            -webkit-app-region: drag;
+            border-radius: 12px 12px 0 0;
         }
 
         .header-left {
@@ -149,6 +155,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            -webkit-app-region: no-drag;
         }
 
         .credits-badge {
@@ -272,6 +279,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            -webkit-app-region: no-drag;
         }
 
         .tabs {
@@ -509,6 +517,7 @@
             height: 100vh;
             background: #f9fafb;
             flex-direction: column;
+            border-radius: 12px;
         }
 
         .resume-screen-header {
@@ -518,6 +527,8 @@
             padding: 16px 20px;
             background: white;
             border-bottom: 1px solid #e5e7eb;
+            -webkit-app-region: drag;
+            border-radius: 12px 12px 0 0;
         }
 
         .resume-screen-title {
@@ -547,6 +558,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            -webkit-app-region: no-drag;
         }
 
         .resume-collapse-btn,
@@ -578,6 +590,7 @@
             align-items: center;
             max-width: 600px;
             margin: 0 auto;
+            -webkit-app-region: no-drag;
             width: 100%;
         }
 
@@ -812,6 +825,7 @@
             height: 100vh;
             background: #f9fafb;
             flex-direction: column;
+            border-radius: 12px;
         }
 
         .activation-screen-header {
@@ -821,6 +835,8 @@
             padding: 16px 20px;
             background: white;
             border-bottom: 1px solid #e5e7eb;
+            -webkit-app-region: drag;
+            border-radius: 12px 12px 0 0;
         }
 
         .activation-screen-title {
@@ -838,6 +854,7 @@
             justify-content: flex-start;
             max-width: 400px;
             margin: 0 auto;
+            -webkit-app-region: no-drag;
             width: 100%;
             text-align: center;
         }
