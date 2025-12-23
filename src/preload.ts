@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   startInterviewSession: (sessionData: any) => ipcRenderer.invoke('start-interview-session', sessionData),
   endInterviewSession: () => ipcRenderer.invoke('end-interview-session'),
   setWindowOpacity: (opacity: number) => ipcRenderer.invoke('set-window-opacity', opacity),
+  collapseToLogo: () => ipcRenderer.invoke('collapse-to-logo'),
+  expandFromLogo: () => ipcRenderer.invoke('expand-from-logo'),
   debugLog: (message: string) => ipcRenderer.invoke('debug-log', message),
   
   // Audio and Screen Capture APIs

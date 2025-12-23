@@ -211,6 +211,25 @@
             color: #374151;
         }
 
+        .collapse-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .collapse-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
         .menu-dropdown {
             display: none;
             position: absolute;
@@ -519,6 +538,33 @@
         }
 
         .close-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .resume-header-controls,
+        .activation-header-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .resume-collapse-btn,
+        .activation-collapse-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .resume-collapse-btn:hover,
+        .activation-collapse-btn:hover {
             background: #f3f4f6;
             color: #374151;
         }
@@ -993,6 +1039,24 @@
 
         .stop-session-btn:hover {
             background: rgba(220, 38, 38, 1);
+        }
+
+        .interview-collapse-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .interview-collapse-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
         }
 
         .session-timer {
@@ -1693,6 +1757,12 @@
                         <span id="creditsCount">No Credits</span>
                         <span id="headerCooldownTimer" class="header-cooldown-timer"></span>
                     </div>
+                    <button class="collapse-btn" onclick="collapseToLogo()" title="Minimize to logo">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 9v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9"/>
+                            <path d="M9 22V12h6v10M2 10.6L12 2l10 8.6"/>
+                        </svg>
+                    </button>
                     <button class="menu-btn" onclick="toggleMenu()">⋯</button>
                     <div id="menuDropdown" class="menu-dropdown">
                         <div class="menu-item" id="userInfo">
@@ -1762,7 +1832,15 @@
     <div id="resumeSelectionScreen">
         <div class="resume-screen-header">
             <h1 class="resume-screen-title">Select Resume for Session</h1>
-            <button class="close-btn" onclick="closeResumeSelection()">✕</button>
+            <div class="resume-header-controls">
+                <button class="resume-collapse-btn" onclick="collapseToLogo()" title="Minimize to logo">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 9v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9"/>
+                        <path d="M9 22V12h6v10M2 10.6L12 2l10 8.6"/>
+                    </svg>
+                </button>
+                <button class="close-btn" onclick="closeResumeSelection()">✕</button>
+            </div>
         </div>
         
         <div class="resume-screen-content">
@@ -1824,7 +1902,15 @@
     <div id="sessionActivationScreen">
         <div class="activation-screen-header">
             <h1 class="activation-screen-title">Activate Interview Session</h1>
-            <button class="close-btn" onclick="backToResumeSelection()">✕</button>
+            <div class="activation-header-controls">
+                <button class="activation-collapse-btn" onclick="collapseToLogo()" title="Minimize to logo">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 9v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9"/>
+                        <path d="M9 22V12h6v10M2 10.6L12 2l10 8.6"/>
+                    </svg>
+                </button>
+                <button class="close-btn" onclick="backToResumeSelection()">✕</button>
+            </div>
         </div>
         
         <div class="activation-screen-content">
@@ -1881,6 +1967,12 @@
             <div class="interview-header-center">Interview Assistant</div>
             
             <div class="interview-header-right">
+                <button class="interview-collapse-btn" onclick="collapseToLogo()" title="Minimize to logo">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 9v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9"/>
+                        <path d="M9 22V12h6v10M2 10.6L12 2l10 8.6"/>
+                    </svg>
+                </button>
                 <button class="interview-control-btn stop-session-btn" id="stopSessionBtn" onclick="stopInterviewSession()">
                     <span>■</span> Stop
                 </button>
@@ -2079,6 +2171,17 @@
         function toggleMenu() {
             const dropdown = document.getElementById('menuDropdown');
             dropdown.classList.toggle('show');
+        }
+
+        async function collapseToLogo() {
+            try {
+                const result = await window.electronAPI.collapseToLogo();
+                if (!result.success) {
+                    console.error('Failed to collapse window:', result.error);
+                }
+            } catch (error) {
+                console.error('Error collapsing window:', error);
+            }
         }
 
         function buyCredits() {

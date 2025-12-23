@@ -46,8 +46,10 @@ interface ScreenAnalysisResponse {
 
 class ChikuDesktopApp {
   private mainWindow: BrowserWindow | null = null;
+  private collapsedWindow: BrowserWindow | null = null;
   private store: Store;
   private isInterviewMode: boolean = false;
+  private isCollapsed: boolean = false;
   private originalBounds: any = null;
   private windowReadyForIPC: boolean = false;
   
@@ -799,6 +801,28 @@ class ChikuDesktopApp {
       }
     });
 
+    // Collapse to logo
+    ipcMain.handle('collapse-to-logo', async () => {
+      try {
+        this.collapseToLogo();
+        return { success: true };
+      } catch (error) {
+        console.error('Error collapsing to logo:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Expand from logo
+    ipcMain.handle('expand-from-logo', async () => {
+      try {
+        this.expandFromLogo();
+        return { success: true };
+      } catch (error) {
+        console.error('Error expanding from logo:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
     // Screen and Audio Capture APIs
     ipcMain.handle('request-permissions', async () => {
       try {
@@ -1079,6 +1103,122 @@ class ChikuDesktopApp {
         return { success: false, error: error.message };
       }
     });
+  }
+
+  private collapseToLogo() {
+    if (!this.mainWindow || this.isCollapsed) return;
+
+    // Store original window bounds
+    this.originalBounds = this.mainWindow.getBounds();
+
+    // Hide main window
+    this.mainWindow.hide();
+
+    // Create collapsed window with logo
+    this.collapsedWindow = new BrowserWindow({
+      width: 100,
+      height: 100,
+      x: 50,
+      y: 50,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      resizable: false,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js'),
+        webSecurity: true
+      }
+    });
+
+    // Set maximum always on top level for visibility
+    this.collapsedWindow.setAlwaysOnTop(true, 'screen-saver');
+    this.collapsedWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+    // Create HTML content for the collapsed window with logo
+    const logoImagePath = path.join(__dirname, '..', 'public', 'hero_image.png').replace(/\\/g, '/');
+    const logoHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { 
+            margin: 0; 
+            padding: 0; 
+            background: transparent; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh;
+            cursor: pointer;
+          }
+          .logo-container {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-image: url('file://${logoImagePath}');
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+          }
+          .logo-container:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
+          }
+        </style>
+      </head>
+      <body>
+        <div class="logo-container" onclick="expandFromLogo()"></div>
+        <script>
+          function expandFromLogo() {
+            if (window.electronAPI && window.electronAPI.expandFromLogo) {
+              window.electronAPI.expandFromLogo();
+            }
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    // Write HTML to temp file and load it
+    const tempHtmlPath = path.join(__dirname, 'collapsed-logo.html');
+    require('fs').writeFileSync(tempHtmlPath, logoHTML);
+    this.collapsedWindow.loadFile(tempHtmlPath);
+
+    // Handle close event
+    this.collapsedWindow.on('closed', () => {
+      this.collapsedWindow = null;
+      this.isCollapsed = false;
+    });
+
+    this.isCollapsed = true;
+    console.log('Window collapsed to logo');
+  }
+
+  private expandFromLogo() {
+    if (!this.collapsedWindow || !this.isCollapsed) return;
+
+    // Close collapsed window
+    this.collapsedWindow.close();
+    this.collapsedWindow = null;
+
+    // Show and restore main window
+    if (this.mainWindow) {
+      this.mainWindow.show();
+      if (this.originalBounds) {
+        this.mainWindow.setBounds(this.originalBounds);
+      }
+      this.mainWindow.focus();
+      if (process.platform === 'darwin') {
+        app.focus({ steal: true });
+      }
+    }
+
+    this.isCollapsed = false;
+    console.log('Window expanded from logo');
   }
 
   private handleAuthCallback(url: string) {
