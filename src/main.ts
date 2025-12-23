@@ -687,7 +687,16 @@ class ChikuDesktopApp {
 
     // Handle logout
     ipcMain.handle('logout', async () => {
+      // Clear all user-related data including cached cooldown information
       this.store.delete('user');
+      this.store.delete('cachedRemainingMinutes');
+      
+      // Clear any active session data
+      this.currentSessionId = null;
+      this.sessionStartTime = null;
+      this.sessionStartingMinutes = 0;
+      this.clearSessionTimer();
+      
       if (this.mainWindow) {
         this.mainWindow.webContents.send('auth-status-changed', { isAuthenticated: false });
       }
@@ -990,23 +999,35 @@ class ChikuDesktopApp {
       console.log(`[RENDERER] ${message}`);
     });
 
-    // Check cooldown status for free users
+    // Check cooldown status for free users - always fetch fresh data from server
     ipcMain.handle('check-cooldown-status', async () => {
       try {
         const user = this.store.get('user') as any;
-        if (!user || user.subscriptionTier !== 'free') {
+        if (!user) {
           return { 
-            success: true, 
+            success: false, 
+            error: 'User not authenticated',
             isInCooldown: false,
             cooldownInfo: null 
           };
         }
 
+        // Always fetch fresh user data from server for cooldown checks
         const response = await this.makeAuthenticatedRequest('/api/desktop-user');
         if (response.success && response.user) {
           const userData = response.user;
           
-          // Check if user is in cooldown based on webapp logic
+          // Only apply cooldown logic for free tier users
+          if (userData.subscriptionTier !== 'free') {
+            return { 
+              success: true, 
+              isInCooldown: false,
+              cooldownInfo: null,
+              remainingMinutes: userData.remainingMinutes || 0
+            };
+          }
+          
+          // Check if free user is in cooldown based on webapp logic
           const now = new Date();
           const freeMinutesResetAt = userData.freeMinutesResetAt ? new Date(userData.freeMinutesResetAt) : null;
           const isInCooldown = freeMinutesResetAt && now < freeMinutesResetAt;
@@ -1121,7 +1142,16 @@ class ChikuDesktopApp {
         console.log('[AUTH] ⚠️ Could not parse user data from URL, using defaults:', error);
       }
 
-      // Store user data
+      // Clear any previous user's cached data before storing new user
+      this.store.delete('cachedRemainingMinutes');
+      
+      // Clear any active session data from previous user
+      this.currentSessionId = null;
+      this.sessionStartTime = null;
+      this.sessionStartingMinutes = 0;
+      this.clearSessionTimer();
+      
+      // Store new user data
       this.store.set('user', user);
       console.log('[AUTH] ✅ User data stored:', user);
 

@@ -1232,6 +1232,122 @@
             background: rgba(0, 0, 0, 0.9);
         }
 
+        /* Code Block Styling - Completely redesigned */
+        .code-block-container {
+            margin: 16px 0;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #3d4852;
+            background: #1a1d23;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .code-block-header {
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #3d4852;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .code-block {
+            background: #1a1d23 !important;
+            color: #e2e8f0 !important;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', monospace !important;
+            font-size: 12px !important;
+            line-height: 1.5 !important;
+            padding: 12px 16px !important;
+            margin: 0 !important;
+            overflow-x: auto;
+            white-space: pre;
+            border: none !important;
+            display: block !important;
+            word-spacing: normal !important;
+            word-break: normal !important;
+            word-wrap: normal !important;
+            tab-size: 4 !important;
+        }
+
+        .code-block code {
+            background: transparent !important;
+            color: inherit !important;
+            font-family: inherit !important;
+            font-size: inherit !important;
+            padding: 0 !important;
+            border: none !important;
+            display: inline !important;
+            white-space: pre !important;
+            border-radius: 0 !important;
+        }
+
+        .inline-code {
+            background: rgba(200, 137, 74, 0.15) !important;
+            color: #d4af37 !important;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace !important;
+            font-size: 11px !important;
+            padding: 1px 4px !important;
+            border-radius: 3px !important;
+            border: 1px solid rgba(200, 137, 74, 0.25) !important;
+            white-space: nowrap !important;
+        }
+
+        /* Improved syntax highlighting with better contrast */
+        .code-block .keyword { 
+            color: #f472b6 !important;
+            font-weight: 500 !important;
+        }
+        
+        .code-block .string { 
+            color: #10b981 !important;
+        }
+        
+        .code-block .comment { 
+            color: #6b7280 !important; 
+            font-style: italic !important;
+        }
+        
+        .code-block .function { 
+            color: #60a5fa !important;
+            font-weight: 500 !important;
+        }
+        
+        .code-block .class { 
+            color: #f59e0b !important;
+            font-weight: 500 !important;
+        }
+
+        /* Clean markdown styling */
+        .markdown-h1 {
+            color: #f59e0b !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            margin: 16px 0 8px 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            display: block !important;
+        }
+
+        .markdown-h2 {
+            color: #f59e0b !important;
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            margin: 12px 0 6px 0 !important;
+            padding: 0 !important;
+            display: block !important;
+        }
+
+        .markdown-p {
+            margin: 6px 0 !important;
+            line-height: 1.5 !important;
+            padding: 0 !important;
+            display: block !important;
+            color: inherit !important;
+        }
+
         /* Cooldown notification styles */
         .cooldown-notification {
             background: #fbbf24;
@@ -2804,13 +2920,82 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
             }
         }
 
-        // Simple markdown renderer
+        // Simple syntax highlighter - applies highlighting to already HTML-escaped content
+        function applySyntaxHighlighting(escapedCode, language) {
+            if (!language) return escapedCode;
+            
+            const lang = language.toLowerCase();
+            let highlighted = escapedCode;
+            
+            if (lang === 'python') {
+                // First escape HTML entities that are in the code
+                highlighted = highlighted
+                    .replace(/\b(def|class|if|else|elif|for|while|try|except|import|from|return|yield|with|as|lambda|pass|break|continue|global|nonlocal|assert|del|raise|True|False|None|and|or|not|in|is)\b/g, '<span class="keyword">$1</span>')
+                    .replace(/(#.*$)/gm, '<span class="comment">$1</span>')
+                    .replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g, '<span class="function">$1</span>(');
+            } else if (lang === 'javascript' || lang === 'js') {
+                highlighted = highlighted
+                    .replace(/\b(function|var|let|const|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|new|this|typeof|instanceof|true|false|null|undefined)\b/g, '<span class="keyword">$1</span>')
+                    .replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>')
+                    .replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g, '<span class="function">$1</span>(');
+            } else if (lang === 'java') {
+                highlighted = highlighted
+                    .replace(/\b(public|private|protected|static|final|abstract|class|interface|extends|implements|import|package|if|else|for|while|do|switch|case|default|break|continue|return|try|catch|finally|throw|throws|new|this|super|true|false|null|void|int|long|short|byte|char|boolean|float|double|String)\b/g, '<span class="keyword">$1</span>')
+                    .replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>')
+                    .replace(/\b([A-Z][a-zA-Z0-9_]*)\b/g, '<span class="class">$1</span>');
+            }
+            
+            return highlighted;
+        }
+
+        // Simplified markdown renderer with better code block handling
         function renderMarkdown(text) {
-            return text
+            if (!text) return '';
+            
+            let processedText = text.trim();
+            
+            // Handle triple backtick code blocks first
+            processedText = processedText.replace(/```(\w+)?\s*\n([\s\S]*?)\n?```/g, (match, language, code) => {
+                const cleanCode = code.trim();
+                const escapedCode = cleanCode
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                return `\n<div class="code-block-container"><div class="code-block-header">${language || 'code'}</div><pre class="code-block"><code>${escapedCode}</code></pre></div>\n`;
+            });
+            
+            // Handle single backtick with language (like `python)
+            processedText = processedText.replace(/`(\w+)\s*\n([\s\S]*?)(?=\n\n|\n#|\n\*|$)/g, (match, language, code) => {
+                const cleanCode = code.trim();
+                const escapedCode = cleanCode
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                return `\n<div class="code-block-container"><div class="code-block-header">${language}</div><pre class="code-block"><code>${escapedCode}</code></pre></div>\n`;
+            });
+            
+            // Handle inline code (single backticks)
+            processedText = processedText.replace(/`([^`\n]+)`/g, (match, code) => {
+                const escapedCode = code
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                return `<code class="inline-code">${escapedCode}</code>`;
+            });
+            
+            // Handle headers
+            processedText = processedText.replace(/^## (.+)$/gm, '<h2 class="markdown-h2">$1</h2>');
+            processedText = processedText.replace(/^# (.+)$/gm, '<h1 class="markdown-h1">$1</h1>');
+            
+            // Handle bold and italic
+            processedText = processedText
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/`(.*?)`/g, '<code>$1</code>')
-                .replace(/\n/g, '<br>');
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Handle line breaks and paragraphs
+            processedText = processedText.replace(/\n/g, '<br>');
+            
+            return processedText;
         }
 
         // Auto AI Answer Functions
