@@ -229,7 +229,7 @@ class ChikuDesktopApp {
   private createMainWindow() {
     this.mainWindow = new BrowserWindow({
       width: 450,
-      height: 240,
+      height: 420,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -1181,8 +1181,7 @@ class ChikuDesktopApp {
     // Enable content protection to prevent screen capture like main window
     this.collapsedWindow.setContentProtection(true);
 
-    // Create HTML content for the collapsed window with logo
-    const logoImagePath = path.join(__dirname, '..', 'public', 'hero_image.png').replace(/\\/g, '/');
+    // Create HTML file for collapsed window and load it like main window
     const logoHTML = `
       <!DOCTYPE html>
       <html>
@@ -1202,7 +1201,7 @@ class ChikuDesktopApp {
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            background-image: url('file://${logoImagePath}');
+            background-image: url('hero_image.png');
             background-size: cover;
             background-position: center;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
@@ -1227,10 +1226,11 @@ class ChikuDesktopApp {
       </html>
     `;
 
-    // Write HTML to temp file and load it
-    const tempHtmlPath = path.join(__dirname, 'collapsed-logo.html');
-    require('fs').writeFileSync(tempHtmlPath, logoHTML);
-    this.collapsedWindow.loadFile(tempHtmlPath);
+    // Write temp HTML file and load it to access hero_image.png properly
+    const fs = require('fs');
+    const tempLogoPath = path.join(__dirname, 'collapsed-logo.html');
+    fs.writeFileSync(tempLogoPath, logoHTML);
+    this.collapsedWindow.loadFile(tempLogoPath);
 
     // Handle close event
     this.collapsedWindow.on('closed', () => {

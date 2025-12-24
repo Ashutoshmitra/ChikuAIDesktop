@@ -2328,6 +2328,11 @@
                     dashboard.style.flexDirection = 'column';
                 }
                 
+                // Resize window to dashboard size after login
+                if (window.electronAPI && window.electronAPI.resizeWindow) {
+                    window.electronAPI.resizeWindow(450, 240);
+                }
+                
                 // Update user info and load real data
                 if (user) {
                     const userName = document.getElementById('userName');
