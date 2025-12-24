@@ -227,7 +227,7 @@ class ChikuDesktopApp {
   private createMainWindow() {
     this.mainWindow = new BrowserWindow({
       width: 450,
-      height: 650,
+      height: 240,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -625,7 +625,7 @@ class ChikuDesktopApp {
     this.mainWindow.destroy();
     this.mainWindow = new BrowserWindow({
       width: 450,
-      height: 650,
+      height: 240,
       x: this.originalBounds?.x || 100,
       y: this.originalBounds?.y || 100,
       webPreferences: {
@@ -830,6 +830,20 @@ class ChikuDesktopApp {
         return { success: true };
       } catch (error) {
         console.error('Error expanding from logo:', error);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Resize window for different screens
+    ipcMain.handle('resize-window', async (event, width, height) => {
+      try {
+        if (this.mainWindow && !this.isInterviewMode) {
+          this.mainWindow.setSize(width, height, true);
+          return { success: true };
+        }
+        return { success: false, error: 'Window not available or in interview mode' };
+      } catch (error) {
+        console.error('Error resizing window:', error);
         return { success: false, error: error.message };
       }
     });
