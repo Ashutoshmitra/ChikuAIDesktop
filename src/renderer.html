@@ -1085,6 +1085,7 @@
             flex: 1;
             display: flex;
             overflow: hidden;
+            position: relative;
         }
 
         .interview-left-panel {
@@ -1092,12 +1093,57 @@
             border-right: 1px solid rgba(255, 255, 255, 0.2);
             display: flex;
             flex-direction: column;
+            transition: width 0.3s ease-in-out;
         }
 
         .interview-right-panel {
             width: 50%;
             display: flex;
             flex-direction: column;
+            transition: width 0.3s ease-in-out;
+        }
+
+        /* Panel resize button */
+        .panel-resize-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(200, 137, 74, 0.9);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+            z-index: 1000;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .panel-resize-btn:hover {
+            background: rgba(200, 137, 74, 1);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        /* Button position when panels are expanded */
+        .panel-resize-btn.expanded {
+            left: 80%;
+        }
+
+        /* Adjusted panel widths */
+        .interview-left-panel.expanded {
+            width: 80%;
+        }
+
+        .interview-right-panel.collapsed {
+            width: 20%;
         }
 
         .interview-panel-header {
@@ -1276,6 +1322,20 @@
             flex-shrink: 0;
             padding-top: 2px;
             min-width: 80px;
+        }
+
+        /* When right panel is collapsed, stack timestamp above text */
+        .interview-right-panel.collapsed .interview-transcript-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
+        .interview-right-panel.collapsed .interview-transcript-timestamp {
+            min-width: auto;
+            padding-top: 0;
+            font-size: 10px;
+            margin-bottom: 2px;
         }
 
         .interview-transcript-text {
@@ -1992,7 +2052,7 @@
 
         <div class="interview-main-content">
             <!-- Left Panel - AI Answers & Chat -->
-            <div class="interview-left-panel">
+            <div class="interview-left-panel" id="interviewLeftPanel">
                 <div class="interview-panel-header">AI Answers & Chat</div>
                 <div class="interview-panel-content" id="interviewChatMessages">
                     <div class="interview-chat-message system-message">
@@ -2010,7 +2070,7 @@
             </div>
 
             <!-- Right Panel - Transcript -->
-            <div class="interview-right-panel">
+            <div class="interview-right-panel" id="interviewRightPanel">
                 <div class="interview-panel-header">Transcript</div>
                 <div class="interview-panel-content" id="interviewTranscriptContent">
                     <div class="interview-connection-status" id="connectionStatus">
@@ -2019,6 +2079,11 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Panel Resize Button -->
+            <button class="panel-resize-btn" id="panelResizeBtn" onclick="togglePanelSizes()" title="Toggle panel sizes">
+                ⇄
+            </button>
         </div>
 
     </div>
@@ -3866,6 +3931,35 @@ IMPORTANT:
                 slider.value = 95;
                 value.textContent = '95%';
                 // Don't call updateTransparency here - let it be applied manually
+            }
+        }
+
+        // Panel resize functionality
+        let isPanelExpanded = false;
+
+        function togglePanelSizes() {
+            const leftPanel = document.getElementById('interviewLeftPanel');
+            const rightPanel = document.getElementById('interviewRightPanel');
+            const resizeBtn = document.getElementById('panelResizeBtn');
+            
+            if (!leftPanel || !rightPanel || !resizeBtn) return;
+            
+            isPanelExpanded = !isPanelExpanded;
+            
+            if (isPanelExpanded) {
+                // Expand left panel to 80%, shrink right panel to 20%
+                leftPanel.classList.add('expanded');
+                rightPanel.classList.add('collapsed');
+                resizeBtn.classList.add('expanded');
+                resizeBtn.innerHTML = '⇆';
+                resizeBtn.title = 'Reset panel sizes';
+            } else {
+                // Reset to 50/50 split
+                leftPanel.classList.remove('expanded');
+                rightPanel.classList.remove('collapsed');
+                resizeBtn.classList.remove('expanded');
+                resizeBtn.innerHTML = '⇄';
+                resizeBtn.title = 'Toggle panel sizes';
             }
         }
 
