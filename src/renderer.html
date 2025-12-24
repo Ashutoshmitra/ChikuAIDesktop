@@ -2279,17 +2279,9 @@
             // Listen for session timer updates
             window.electronAPI.onSessionTimerUpdate((timerData) => {
                 const timerElement = document.getElementById('sessionTimerInterview');
-                if (timerElement && timerData) {
-                    // Use the display format from main.ts which handles both free and paid users
-                    if (timerData.display) {
-                        timerElement.textContent = timerData.display;
-                    } else {
-                        // Fallback to old format if display not provided
-                        const minutes = Math.floor(timerData.remaining || 0);
-                        const seconds = Math.floor(((timerData.remaining || 0) - minutes) * 60);
-                        const displayText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                        timerElement.textContent = displayText;
-                    }
+                if (timerElement && timerData && timerData.display) {
+                    // Always use the display format from main.ts
+                    timerElement.textContent = timerData.display;
                     
                     // Add visual warning when time is running low
                     if (timerData.type === 'free' && timerData.remainingSeconds && timerData.remainingSeconds < 60) {
@@ -2357,6 +2349,11 @@
             } else {
                 if (loginContainer) loginContainer.style.display = 'flex';
                 if (dashboard) dashboard.style.display = 'none';
+                
+                // Resize window back to login screen size on logout
+                if (window.electronAPI && window.electronAPI.resizeWindow) {
+                    window.electronAPI.resizeWindow(450, 420);
+                }
             }
         }
 

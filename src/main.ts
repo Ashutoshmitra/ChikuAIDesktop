@@ -61,6 +61,10 @@ class ChikuDesktopApp {
   private timerSessionId: string | null = null;
   private sessionStartingMinutes: number = 0; // Track starting minutes for this session
   
+  // Simple countdown timer properties
+  private currentRemainingSeconds: number = 0; // Track countdown seconds
+  private lastServerSyncTime: number = 0; // Track when we last synced with server
+  
   // Webapp backend configuration
   private readonly WEBAPP_BASE_URL = process.env.WEBAPP_BASE_URL || 'https://www.chiku-ai.in';
 
@@ -413,7 +417,7 @@ class ChikuDesktopApp {
     this.mainWindow.webContents.once('dom-ready', () => {
       
       // Add a small delay to ensure previous timer callbacks are done
-      setTimeout(() => {
+      setTimeout(async () => {
         if (this.mainWindow && !this.mainWindow.isDestroyed() && this.mainWindow.webContents) {
           this.mainWindow.webContents.send('mode-changed', { 
             mode: 'interview',
@@ -427,7 +431,7 @@ class ChikuDesktopApp {
           
           // Mark window as ready for IPC first, then start timer
           this.windowReadyForIPC = true;
-          this.startSessionTimer();
+          await this.startSessionTimer();
         }
       }, 100); // Reduced delay to minimize dashboard flash
     });
@@ -435,9 +439,39 @@ class ChikuDesktopApp {
     this.isInterviewMode = true;
   }
 
-  private startSessionTimer() {
+  private async initializeCountdown() {
+    const user = this.store.get('user') as any;
+    
+    // Extract subscription tier from JWT token if not in user object
+    let subscriptionTier = user?.subscriptionTier;
+    if (!subscriptionTier && user?.token) {
+      try {
+        const payload = JSON.parse(Buffer.from(user.token.split('.')[1], 'base64').toString());
+        subscriptionTier = payload.subscriptionTier;
+      } catch (error) {
+      }
+    }
+    
+    const userTier = subscriptionTier || 'free';
+    
+    if (userTier === 'free') {
+      // Free users: start with their allocated minutes
+      this.currentRemainingSeconds = this.sessionStartingMinutes * 60;
+    } else {
+      // Paid users: start with their account minutes
+      const cachedRemainingMinutes = Number(this.store.get('cachedRemainingMinutes')) || 0;
+      this.currentRemainingSeconds = cachedRemainingMinutes * 60;
+    }
+    
+    this.lastServerSyncTime = Date.now();
+  }
+
+  private async startSessionTimer() {
     // Clear any existing timer first
     this.clearSessionTimer();
+    
+    // Initialize countdown
+    await this.initializeCountdown();
     
     // Store which session this timer belongs to
     this.timerSessionId = this.currentSessionId;
@@ -450,12 +484,10 @@ class ChikuDesktopApp {
       }
       
       if (this.sessionStartTime && this.currentSessionId) {
-        const elapsedSeconds = Math.floor((new Date().getTime() - this.sessionStartTime.getTime()) / 1000);
-        const elapsed = Math.floor(elapsedSeconds / 60); // minutes
+        // Decrement countdown by 1 second
+        this.currentRemainingSeconds = Math.max(0, this.currentRemainingSeconds - 1);
         
         const user = this.store.get('user') as any;
-        
-        // Extract subscription tier from JWT token if not in user object
         let subscriptionTier = user?.subscriptionTier;
         if (!subscriptionTier && user?.token) {
           try {
@@ -465,101 +497,45 @@ class ChikuDesktopApp {
           }
         }
         
-        // Send timer update to renderer (with comprehensive safety checks)
+        const userTier = subscriptionTier || 'free';
         
+        // Send timer update to renderer
         if (this.windowReadyForIPC && this.mainWindow && !this.mainWindow.isDestroyed() && 
             this.mainWindow.webContents && !this.mainWindow.webContents.isDestroyed()) {
           try {
-            // Use extracted subscription tier, default to free if unknown
-            const userTier = subscriptionTier || 'free';
+            const remainingMinutes = Math.floor(this.currentRemainingSeconds / 60);
+            const remainingSecs = this.currentRemainingSeconds % 60;
             
-            if (userTier === 'free') {
-              // Free users: countdown from their starting minutes
-              const sessionTimeLimitSeconds = this.sessionStartingMinutes * 60; // starting minutes in seconds
-              const remainingSeconds = Math.max(0, sessionTimeLimitSeconds - elapsedSeconds);
-              const remainingMinutes = Math.floor(remainingSeconds / 60);
-              const remainingSecs = remainingSeconds % 60;
-              
-              const timerData = {
-                type: 'free',
-                elapsed: elapsed,
-                remaining: remainingSeconds / 60, // in minutes for compatibility
-                remainingSeconds: remainingSeconds,
-                display: `${remainingMinutes}:${remainingSecs.toString().padStart(2, '0')}`
-              };
-              this.mainWindow.webContents.send('session-timer-update', timerData);
-              
-              // End session when time is up
-              if (remainingSeconds <= 0) {
-                this.endCurrentSession();
-                return;
-              }
-            } else {
-              // Paid users: Update remaining minutes in real-time
-              // Update DB every 30 seconds to avoid too many API calls, but show real-time countdown
-              const shouldUpdateDB = elapsedSeconds % 30 === 0 && elapsedSeconds > 0;
-              
-              if (shouldUpdateDB) {
-                try {
-                  // Calculate minutes used in this session so far
-                  const minutesUsedSoFar = Math.floor(elapsedSeconds / 60);
-                  
-                  // Update user's remaining minutes in DB
-                  const updateResponse = await this.makeAuthenticatedRequest('/api/desktop-sessions/update-realtime', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                      sessionId: this.currentSessionId,
-                      minutesUsed: minutesUsedSoFar
-                    })
-                  });
-                  
-                  if (updateResponse.success && updateResponse.user) {
-                    // Update cached remaining minutes with latest from DB
-                    const newRemainingMinutes = updateResponse.user.remainingMinutes || 0;
-                    
-                    this.store.set('cachedRemainingMinutes', Number(newRemainingMinutes) || 0);
-                    
-                    // End session when no minutes remaining
-                    if (newRemainingMinutes <= 0) {
-                      this.endCurrentSession();
-                      return;
-                    }
-                  } else {
-                  }
-                } catch (error) {
-                  // Continue with cached data for countdown display
-                }
-              }
-              
-              // For paid users, show remaining account time minus elapsed session time (in seconds)
-              const cachedRemainingMinutes = Number(this.store.get('cachedRemainingMinutes')) || 0;
-              const totalAccountSeconds = cachedRemainingMinutes * 60; // Convert account minutes to seconds
-              const remainingSeconds = Math.max(0, totalAccountSeconds - elapsedSeconds); // Subtract elapsed seconds
-              const remainingMins = Math.floor(remainingSeconds / 60);
-              const remainingSecs = remainingSeconds % 60;
-              
-              const timerData = {
-                type: 'paid',
-                elapsed: elapsed,
-                remaining: remainingMins, // remaining minutes for compatibility
-                remainingSeconds: remainingSeconds,
-                display: `${remainingMins}:${remainingSecs.toString().padStart(2, '0')} left`
-              };
-              this.mainWindow.webContents.send('session-timer-update', timerData);
-              
-              // End session when no time remaining
-              if (remainingSeconds <= 0) {
-                this.endCurrentSession();
-                return;
-              }
+            const timerData = {
+              type: userTier,
+              elapsed: Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60),
+              remaining: remainingMinutes,
+              remainingSeconds: this.currentRemainingSeconds,
+              display: userTier === 'free' ? 
+                `${remainingMinutes}:${remainingSecs.toString().padStart(2, '0')}` :
+                `${remainingMinutes}:${remainingSecs.toString().padStart(2, '0')} left`
+            };
+            
+            this.mainWindow.webContents.send('session-timer-update', timerData);
+            
+            // End session when time is up
+            if (this.currentRemainingSeconds <= 0) {
+              this.endCurrentSession();
+              return;
             }
+            
+            // Sync with server every 30 seconds for all users
+            const timeSinceSync = Date.now() - this.lastServerSyncTime;
+            if (timeSinceSync >= 30000) { // 30 seconds
+              await this.syncWithServer();
+            }
+            
           } catch (error) {
             // If we consistently can't communicate with window, clear the timer
             if (error.message.includes('disposed') || error.message.includes('destroyed')) {
               this.clearSessionTimer();
             }
           }
-        } else {
         }
       } else {
         // No valid session data, clear the timer
@@ -568,14 +544,62 @@ class ChikuDesktopApp {
     }, 1000);
   }
   
+  private async syncWithServer() {
+    try {
+      const elapsedSeconds = Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000);
+      const minutesUsedSoFar = Math.floor(elapsedSeconds / 60);
+      
+      // Skip sync if no minutes used yet
+      if (minutesUsedSoFar <= 0) {
+        this.lastServerSyncTime = Date.now();
+        return;
+      }
+      
+      // Update user's remaining minutes in DB
+      const updateResponse = await this.makeAuthenticatedRequest('/api/desktop-sessions/update-realtime', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId: this.currentSessionId,
+          minutesUsed: minutesUsedSoFar
+        })
+      });
+      
+      if (updateResponse.success && updateResponse.user) {
+        // Just update cached value for reference, don't reset countdown
+        const serverRemainingMinutes = updateResponse.user.remainingMinutes || 0;
+        this.store.set('cachedRemainingMinutes', Number(serverRemainingMinutes) || 0);
+        
+        // End session when server says no minutes remaining
+        if (serverRemainingMinutes <= 0) {
+          this.endCurrentSession();
+          return;
+        }
+      } else {
+        // If update-realtime endpoint fails, try the regular update endpoint
+        await this.makeAuthenticatedRequest('/api/desktop-sessions/update', {
+          method: 'POST',
+          body: JSON.stringify({
+            sessionId: this.currentSessionId,
+            minutesUsed: minutesUsedSoFar
+          })
+        });
+      }
+      
+      this.lastServerSyncTime = Date.now();
+    } catch (error) {
+      // Continue with current countdown if sync fails
+      this.lastServerSyncTime = Date.now(); // Still update sync time to avoid spam
+    }
+  }
+  
   private clearSessionTimer() {
-    // Only set windowReadyForIPC to false when actually ending session, not when restarting timer
-    // this.windowReadyForIPC = false; // REMOVED - this was causing the bug
     if (this.sessionTimer) {
       clearInterval(this.sessionTimer);
       this.sessionTimer = null;
     }
     this.timerSessionId = null;
+    this.currentRemainingSeconds = 0;
+    this.lastServerSyncTime = 0;
   }
   
   private async endCurrentSession() {
