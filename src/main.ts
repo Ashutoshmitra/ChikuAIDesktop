@@ -179,15 +179,12 @@ class ChikuDesktopApp {
       protocolRegistered = app.setAsDefaultProtocolClient('chiku-ai-interview-assistant');
     }
     
-    console.log(`[MAIN] Protocol registration result: ${protocolRegistered}`);
 
     // Set up protocol handler before ready event
     app.on('will-finish-launching', () => {
-      console.log('[MAIN] will-finish-launching - setting up protocol handler');
       
       // Protocol handler for macOS
       app.on('open-url', (event, url) => {
-        console.log('[MAIN] ✅ open-url event received:', url);
         event.preventDefault();
         this.handleAuthCallback(url);
       });
@@ -232,33 +229,21 @@ class ChikuDesktopApp {
     
     // Permission handler that properly handles screen recording permission dialogs
     session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback, details) => {
-      console.log('Permission request:', permission, details);
       
       if (permission === 'media') {
         // Check if this is a screen capture request (empty mediaTypes array)
         if (details.mediaTypes && details.mediaTypes.length === 0) {
-          console.log('[PERMISSION DEBUG] Screen capture permission requested');
           
           // For screen capture on macOS, check if permission is already granted
           if (process.platform === 'darwin') {
             const screenAccess = systemPreferences.getMediaAccessStatus('screen');
-            console.log('[PERMISSION DEBUG] Current screen access status:', screenAccess);
             
             if (screenAccess === 'granted') {
-              console.log('[PERMISSION DEBUG] Screen recording already granted, allowing');
               callback(true);
             } else if (screenAccess === 'denied') {
-              console.log('[PERMISSION DEBUG] Screen recording denied at system level');
-              if (!app.isPackaged) {
-                console.log('[DEV HELP] To fix this in development:');
-                console.log('[DEV HELP] 1. Open System Settings → Privacy & Security → Screen Recording');
-                console.log('[DEV HELP] 2. Enable permission for "Electron" or "Terminal"');
-                console.log('[DEV HELP] 3. Restart this app');
-              }
               callback(false);
             } else {
               // Status is 'not-determined' - let the system show the permission dialog
-              console.log('[PERMISSION DEBUG] Screen recording permission not determined, allowing to trigger system dialog');
               callback(true);
             }
           } else {
@@ -267,7 +252,6 @@ class ChikuDesktopApp {
           }
         } else {
           // Regular media (microphone/camera) request
-          console.log('[PERMISSION DEBUG] Regular media permission requested');
           callback(true);
         }
       } else if (permission === 'notifications') {
@@ -334,7 +318,6 @@ class ChikuDesktopApp {
       const userDataResponse = await this.makeAuthenticatedRequest('/api/desktop-user');
       if (userDataResponse.success && userDataResponse.user) {
         this.sessionStartingMinutes = Number(userDataResponse.user.remainingMinutes) || 0;
-        console.log(`[SESSION DEBUG] Starting session with ${this.sessionStartingMinutes} minutes available`);
         
         // Cache for paid users
         const user = this.store.get('user') as any;
@@ -344,7 +327,6 @@ class ChikuDesktopApp {
         }
       }
     } catch (error) {
-      console.log('Error fetching initial user data for session:', error);
       // Fallback to default minutes based on tier
       const user = this.store.get('user') as any;
       const subscriptionTier = user?.subscriptionTier || this.extractSubscriptionTier(user?.token);
@@ -367,10 +349,8 @@ class ChikuDesktopApp {
       // Use the sessionId returned by the webapp backend
       if (response.sessionId) {
         this.currentSessionId = response.sessionId;
-        console.log('Session created via webapp backend:', this.currentSessionId);
       }
     } catch (error) {
-      console.error('Failed to create session via webapp backend:', error);
       // Continue anyway for offline functionality
     }
 
@@ -453,7 +433,6 @@ class ChikuDesktopApp {
     });
 
     this.isInterviewMode = true;
-    console.log('Window transformed to interview mode');
   }
 
   private startSessionTimer() {
@@ -466,7 +445,6 @@ class ChikuDesktopApp {
     this.sessionTimer = setInterval(async () => {
       // Check if this timer is still valid for the current session
       if (this.timerSessionId !== this.currentSessionId) {
-        console.log('Timer session mismatch, clearing timer');
         this.clearSessionTimer();
         return;
       }
@@ -513,7 +491,6 @@ class ChikuDesktopApp {
               
               // End session when time is up
               if (remainingSeconds <= 0) {
-                console.log(`Free session time limit (${this.sessionStartingMinutes} minutes) reached, ending session`);
                 this.endCurrentSession();
                 return;
               }
@@ -539,23 +516,17 @@ class ChikuDesktopApp {
                   if (updateResponse.success && updateResponse.user) {
                     // Update cached remaining minutes with latest from DB
                     const newRemainingMinutes = updateResponse.user.remainingMinutes || 0;
-                    console.log(`[MINUTES DEBUG] Backend returned remainingMinutes: ${newRemainingMinutes}`);
-                    console.log(`[MINUTES DEBUG] Full user object:`, updateResponse.user);
                     
                     this.store.set('cachedRemainingMinutes', Number(newRemainingMinutes) || 0);
                     
                     // End session when no minutes remaining
                     if (newRemainingMinutes <= 0) {
-                      console.log('Paid user minutes exhausted, ending session');
-                      console.log(`[MINUTES DEBUG] Session ended because remainingMinutes = ${newRemainingMinutes}`);
                       this.endCurrentSession();
                       return;
                     }
                   } else {
-                    console.log('[MINUTES DEBUG] Invalid updateResponse:', updateResponse);
                   }
                 } catch (error) {
-                  console.log('Error updating real-time session minutes:', error);
                   // Continue with cached data for countdown display
                 }
               }
@@ -578,16 +549,13 @@ class ChikuDesktopApp {
               
               // End session when no time remaining
               if (remainingSeconds <= 0) {
-                console.log('Paid user minutes exhausted during session, ending session');
                 this.endCurrentSession();
                 return;
               }
             }
           } catch (error) {
-            console.log('Timer update skipped - window communication error:', error.message);
             // If we consistently can't communicate with window, clear the timer
             if (error.message.includes('disposed') || error.message.includes('destroyed')) {
-              console.log('Clearing timer due to window disposal');
               this.clearSessionTimer();
             }
           }
@@ -595,7 +563,6 @@ class ChikuDesktopApp {
         }
       } else {
         // No valid session data, clear the timer
-        console.log('No valid session data, clearing timer');
         this.clearSessionTimer();
       }
     }, 1000);
@@ -618,9 +585,7 @@ class ChikuDesktopApp {
       try {
         // Update session in database and user's remaining minutes
         await this.updateSessionMinutes(this.currentSessionId, elapsed);
-        console.log(`Session ${this.currentSessionId} ended. Duration: ${elapsed} minutes`);
       } catch (error) {
-        console.error('Error ending session:', error);
       }
       
       // Clear timer and session data
@@ -647,18 +612,14 @@ class ChikuDesktopApp {
           })
         });
         
-        console.log(`Session ${sessionId} updated via webapp backend. Minutes used: ${minutesUsed}`);
       } else {
-        console.log(`Session ${sessionId} ended with 0 minutes - skipping update`);
       }
     } catch (error: any) {
       // Handle specific error cases
       if (error.message && error.message.includes('403')) {
-        console.log(`Session ${sessionId} update failed - user has insufficient minutes remaining. This is expected when free users exhaust their time.`);
         // For free users who exhaust their minutes, we still consider the session successfully ended
         return;
       }
-      console.error('Error updating session minutes via webapp backend:', error);
     }
   }
 
@@ -733,7 +694,6 @@ class ChikuDesktopApp {
       app.focus({ steal: true });
     }
 
-    console.log('Window transformed to dashboard mode');
   }
 
   private setupIPC() {
@@ -748,7 +708,6 @@ class ChikuDesktopApp {
       try {
         return await autoUpdater.checkForUpdates();
       } catch (error) {
-        console.error('Error checking for updates:', error);
         return null;
       }
     });
@@ -794,7 +753,6 @@ class ChikuDesktopApp {
         const response = await this.makeAuthenticatedRequest('/api/desktop-sessions');
         return response;
       } catch (error) {
-        console.error('Error fetching sessions:', error);
         // Return empty sessions when API fails
         return {
           success: false,
@@ -809,7 +767,6 @@ class ChikuDesktopApp {
         const response = await this.makeAuthenticatedRequest('/api/desktop-user');
         return response;
       } catch (error) {
-        console.error('Error fetching user data:', error);
         return {
           success: false,
           error: error.message
@@ -823,7 +780,6 @@ class ChikuDesktopApp {
         const response = await this.makeAuthenticatedRequest('/api/desktop-resumes');
         return response;
       } catch (error) {
-        console.error('Error fetching resumes:', error);
         // Return empty resumes when API fails
         return {
           success: false,
@@ -841,7 +797,6 @@ class ChikuDesktopApp {
         const response = await this.makeAuthenticatedRequest(`/api/desktop-resume/${resumeId}`);
         return response;
       } catch (error) {
-        console.error('Error fetching resume by ID:', error);
         return {
           success: false,
           error: error.message
@@ -855,7 +810,6 @@ class ChikuDesktopApp {
         await this.transformToInterviewMode(sessionData);
         return { success: true };
       } catch (error) {
-        console.error('Error starting interview session:', error);
         return { success: false, error: error.message };
       }
     });
@@ -866,7 +820,6 @@ class ChikuDesktopApp {
         this.transformToDashboardMode();
         return { success: true };
       } catch (error) {
-        console.error('Error ending interview session:', error);
         return { success: false, error: error.message };
       }
     });
@@ -882,7 +835,6 @@ class ChikuDesktopApp {
         }
         return { success: false, error: 'Window not available or not in interview mode' };
       } catch (error) {
-        console.error('Error setting window opacity:', error);
         return { success: false, error: error.message };
       }
     });
@@ -893,7 +845,6 @@ class ChikuDesktopApp {
         this.collapseToLogo();
         return { success: true };
       } catch (error) {
-        console.error('Error collapsing to logo:', error);
         return { success: false, error: error.message };
       }
     });
@@ -904,7 +855,6 @@ class ChikuDesktopApp {
         this.expandFromLogo();
         return { success: true };
       } catch (error) {
-        console.error('Error expanding from logo:', error);
         return { success: false, error: error.message };
       }
     });
@@ -918,7 +868,6 @@ class ChikuDesktopApp {
         }
         return { success: false, error: 'Window not available or in interview mode' };
       } catch (error) {
-        console.error('Error resizing window:', error);
         return { success: false, error: error.message };
       }
     });
@@ -929,7 +878,6 @@ class ChikuDesktopApp {
         // This will be handled by the permission handler we'll set up
         return { success: true };
       } catch (error) {
-        console.error('Error requesting microphone permission:', error);
         return { success: false, error: error.message };
       }
     });
@@ -938,7 +886,6 @@ class ChikuDesktopApp {
 
     ipcMain.handle('get-desktop-sources', async () => {
       try {
-        console.log('[SCREEN DEBUG] Getting desktop sources...');
         
         // Get both screen and window sources
         const sources = await desktopCapturer.getSources({
@@ -946,19 +893,11 @@ class ChikuDesktopApp {
           thumbnailSize: { width: 500, height: 500 }
         });
         
-        console.log(`[SCREEN DEBUG] Found ${sources.length} total sources:`);
-        sources.forEach((source, index) => {
-          const type = source.id.includes('screen:') ? 'SCREEN' : 'WINDOW';
-          console.log(`[SCREEN DEBUG] Source ${index}: ${type} - ID=${source.id}, Name=${source.name}`);
-        });
-        
         // Filter out our own app window
         const filteredSources = sources.filter(source => 
           !source.name.toLowerCase().includes('chiku') && 
           !source.name.toLowerCase().includes('electron')
         );
-        
-        console.log(`[SCREEN DEBUG] Filtered to ${filteredSources.length} sources (excluding our app)`);
         
         return { 
           success: true, 
@@ -970,14 +909,12 @@ class ChikuDesktopApp {
           }))
         };
       } catch (error) {
-        console.error('[SCREEN ERROR] Error getting desktop sources:', error);
         return { success: false, error: error.message };
       }
     });
 
     ipcMain.handle('capture-screen', async () => {
       try {
-        console.log('[CAPTURE DEBUG] Starting real screen capture...');
         
         // Get screen sources to get the source ID
         const sources = await desktopCapturer.getSources({
@@ -985,16 +922,13 @@ class ChikuDesktopApp {
           thumbnailSize: { width: 150, height: 150 } // Small thumbnail, we don't need it
         });
         
-        console.log(`[CAPTURE DEBUG] Found ${sources.length} screen sources`);
         
         if (sources.length === 0) {
-          console.log('[CAPTURE ERROR] No screen sources available');
           return { success: false, error: 'No screen sources available' };
         }
         
         // Use the first (primary) screen
         const source = sources[0];
-        console.log(`[CAPTURE DEBUG] Using source: ${source.name} (ID: ${source.id})`);
         
         // Return the source ID so renderer can capture with getUserMedia
         return { 
@@ -1004,7 +938,6 @@ class ChikuDesktopApp {
         };
         
       } catch (error) {
-        console.error('[CAPTURE ERROR] Error getting screen sources:', error);
         return { success: false, error: error.message };
       }
     });
@@ -1015,7 +948,6 @@ class ChikuDesktopApp {
         const response = await this.makeAuthenticatedRequest('/api/assemblyai-token') as AssemblyAITokenResponse;
         return { success: true, token: response.token };
       } catch (error: any) {
-        console.error('Error getting AssemblyAI token from webapp backend:', error);
         return { success: false, error: error.message };
       }
     });
@@ -1023,18 +955,15 @@ class ChikuDesktopApp {
     // OpenAI Chat API - Use webapp backend
     ipcMain.handle('generate-ai-response', async (event, data) => {
       try {
-        console.log('[AI RESPONSE DEBUG] Making request with data:', JSON.stringify(data, null, 2));
         
         const response = await this.makeAuthenticatedRequest('/api/chat', {
           method: 'POST',
           body: JSON.stringify(data)
         }) as ChatResponse;
         
-        console.log('[AI RESPONSE DEBUG] Got response from backend:', JSON.stringify(response, null, 2));
         
         return { success: true, response: response.response };
       } catch (error: any) {
-        console.error('[AI RESPONSE DEBUG] Error getting AI response from webapp backend:', error);
         return { success: false, error: 'Failed to get AI response from webapp backend' };
       }
     });
@@ -1099,7 +1028,6 @@ class ChikuDesktopApp {
           });
 
           request.on('error', (error) => {
-            console.error('Request error:', error);
             reject(error);
           });
 
@@ -1108,7 +1036,6 @@ class ChikuDesktopApp {
         });
         
       } catch (error: any) {
-        console.error('Error getting streaming AI response:', error);
         return { success: false, error: 'Failed to get streaming AI response' };
       }
     });
@@ -1116,24 +1043,17 @@ class ChikuDesktopApp {
     // Screen Analysis API - Use webapp backend
     ipcMain.handle('analyze-screen-content', async (event, imageData) => {
       try {
-        console.log('[ANALYZE DEBUG] Starting screen content analysis...');
-        console.log(`[ANALYZE DEBUG] Image data received: ${imageData ? 'YES' : 'NO'}`);
-        console.log(`[ANALYZE DEBUG] Image data size: ${imageData ? imageData.length : 0} characters`);
         
         if (!imageData) {
-          console.log('[ANALYZE ERROR] No image data provided');
           return { success: false, error: 'Screen image data is required' };
         }
 
-        console.log(`[ANALYZE DEBUG] Image data prefix: ${imageData.substring(0, 100)}...`);
-        console.log('[ANALYZE DEBUG] Making request to webapp backend...');
 
         const response = await this.makeAuthenticatedRequest('/api/analyze-screen', {
           method: 'POST',
           body: JSON.stringify({ imageData })
         }) as ScreenAnalysisResponse;
         
-        console.log('[ANALYZE DEBUG] Webapp response:', JSON.stringify(response, null, 2));
         
         return { 
           success: true,
@@ -1141,14 +1061,12 @@ class ChikuDesktopApp {
           isCoding: response.isCoding || false
         };
       } catch (error: any) {
-        console.error('[ANALYZE ERROR] Screen analysis error from webapp backend:', error);
         return { success: false, error: 'Failed to analyze screen content via webapp backend' };
       }
     });
 
     // Debug relay from renderer
     ipcMain.handle('debug-log', (event, message) => {
-      console.log(`[RENDERER] ${message}`);
     });
 
     // Check cooldown status for free users - always fetch fresh data from server
@@ -1214,7 +1132,6 @@ class ChikuDesktopApp {
           cooldownInfo: null 
         };
       } catch (error: any) {
-        console.error('Error checking cooldown status:', error);
         return { 
           success: false, 
           error: error.message,
@@ -1230,7 +1147,6 @@ class ChikuDesktopApp {
         await this.updateSessionMinutes(sessionId, minutesUsed);
         return { success: true };
       } catch (error: any) {
-        console.error('Error updating session minutes:', error);
         return { success: false, error: error.message };
       }
     });
@@ -1247,7 +1163,6 @@ class ChikuDesktopApp {
 
         return { success: true };
       } catch (error: any) {
-        console.error('Error saving transcript via webapp backend:', error);
         return { success: false, error: error.message };
       }
     });
@@ -1374,16 +1289,8 @@ class ChikuDesktopApp {
   }
 
   private handleAuthCallback(url: string) {
-    console.log('[AUTH] 🔔 Custom protocol callback received:', url);
-    console.log('[AUTH] URL analysis:', {
-      fullUrl: url,
-      includesAuthSuccess: url.includes('auth/success'),
-      protocol: url.split('://')[0],
-      path: url.split('://')[1]
-    });
     
     if (url.includes('auth/success')) {
-      console.log('[AUTH] ✅ Processing auth success callback');
       
       // Parse user data from URL
       let user: any = {
@@ -1399,7 +1306,6 @@ class ChikuDesktopApp {
         const userParam = urlObj.searchParams.get('user');
         if (userParam) {
           const userData = JSON.parse(decodeURIComponent(userParam));
-          console.log('[AUTH] 📋 Parsed user data from URL:', userData);
           user = {
             id: userData.id || user.id,
             email: userData.email || user.email,
@@ -1411,7 +1317,6 @@ class ChikuDesktopApp {
           };
         }
       } catch (error) {
-        console.log('[AUTH] ⚠️ Could not parse user data from URL, using defaults:', error);
       }
 
       // Clear any previous user's cached data before storing new user
@@ -1425,11 +1330,9 @@ class ChikuDesktopApp {
       
       // Store new user data
       this.store.set('user', user);
-      console.log('[AUTH] ✅ User data stored:', user);
 
       // Show the main window and bring it to front
       if (this.mainWindow) {
-        console.log('[AUTH] 📱 Focusing existing main window');
         this.mainWindow.show();
         if (this.mainWindow.isMinimized()) this.mainWindow.restore();
         this.mainWindow.focus();
@@ -1443,13 +1346,10 @@ class ChikuDesktopApp {
           isAuthenticated: true, 
           user 
         });
-        console.log('[AUTH] ✅ Auth status notification sent to renderer');
       } else {
-        console.log('[AUTH] 🆕 Creating new main window');
         this.createMainWindow();
       }
     } else {
-      console.log('[AUTH] ❌ URL does not contain auth/success - ignoring');
     }
   }
   
@@ -1458,22 +1358,18 @@ class ChikuDesktopApp {
     autoUpdater.checkForUpdatesAndNotify();
     
     autoUpdater.on('checking-for-update', () => {
-      console.log('Checking for update...');
     });
     
     autoUpdater.on('update-available', (info) => {
-      console.log('Update available.', info);
       if (this.mainWindow) {
         this.mainWindow.webContents.send('update-available', info);
       }
     });
     
     autoUpdater.on('update-not-available', (info) => {
-      console.log('Update not available.', info);
     });
     
     autoUpdater.on('error', (err) => {
-      console.error('Error in auto-updater:', err);
     });
     
     autoUpdater.on('download-progress', (progressObj) => {
@@ -1483,7 +1379,6 @@ class ChikuDesktopApp {
     });
     
     autoUpdater.on('update-downloaded', (info) => {
-      console.log('Update downloaded', info);
       if (this.mainWindow) {
         this.mainWindow.webContents.send('update-downloaded', info);
       }

@@ -2245,14 +2245,12 @@
             window.electronAPI.getAuthStatus().then(({ isAuthenticated: authenticated, user }) => {
                 updateUI(authenticated, user);
             }).catch(err => {
-                console.error('Failed to get auth status:', err);
                 // Fallback to showing login screen
                 updateUI(false, null);
             });
 
             // Listen for auth status changes
             window.electronAPI.onAuthStatusChanged(({ isAuthenticated: authenticated, user }) => {
-                console.log('Auth status changed:', { authenticated, user });
                 const loading = document.getElementById('loading');
                 if (loading) loading.style.display = 'none'; // Hide loading on any auth change
                 updateUI(authenticated, user);
@@ -2260,7 +2258,6 @@
 
             // Listen for mode changes (dashboard/interview)
             window.electronAPI.onModeChanged(({ mode, sessionData }) => {
-                console.log('Mode changed:', { mode, sessionData });
                 if (mode === 'interview') {
                     isInterviewModeInitializing = true;
                 }
@@ -2285,14 +2282,12 @@
                 if (timerElement && timerData) {
                     // Use the display format from main.ts which handles both free and paid users
                     if (timerData.display) {
-                        console.log('Updating timer display to:', timerData.display);
                         timerElement.textContent = timerData.display;
                     } else {
                         // Fallback to old format if display not provided
                         const minutes = Math.floor(timerData.remaining || 0);
                         const seconds = Math.floor(((timerData.remaining || 0) - minutes) * 60);
                         const displayText = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                        console.log('Updating timer fallback display to:', displayText);
                         timerElement.textContent = displayText;
                     }
                     
@@ -2305,12 +2300,10 @@
                         timerElement.style.color = 'white'; // Normal color
                     }
                 } else {
-                    console.log('Timer element not found or no timer data');
                 }
             });
 
         } else {
-            console.error('electronAPI not available');
             // Show login screen when electronAPI is not available
             updateUI(false, null);
         }
@@ -2399,10 +2392,8 @@
             try {
                 const result = await window.electronAPI.collapseToLogo();
                 if (!result.success) {
-                    console.error('Failed to collapse window:', result.error);
                 }
             } catch (error) {
-                console.error('Error collapsing window:', error);
             }
         }
         
@@ -2472,7 +2463,6 @@
                     }
                 }
             } catch (error) {
-                console.error('Error checking cooldown before starting session:', error);
             }
             
             showResumeSelection();
@@ -2528,7 +2518,6 @@
                     }
                 }
             } catch (error) {
-                console.error('Error loading user data:', error);
             }
         }
 
@@ -2615,7 +2604,6 @@
                     }
                 }
             } catch (error) {
-                console.error('Error checking cooldown status:', error);
             }
         }
 
@@ -2748,7 +2736,6 @@
                     }
                 }
             } catch (error) {
-                console.error('Error loading sessions:', error);
                 // Show error state
                 const sessionsList = document.getElementById('sessionsList');
                 if (sessionsList) {
@@ -2768,17 +2755,13 @@
         });
 
         async function login() {
-            console.log('Login button clicked');
             const loading = document.getElementById('loading');
             loading.style.display = 'block';
 
             try {
-                console.log('Calling electronAPI.login()');
                 await window.electronAPI.login();
-                console.log('Login call completed, waiting for auth callback...');
                 // Note: Don't hide loading here - let the auth callback handle it
             } catch (error) {
-                console.error('Login failed:', error);
                 loading.style.display = 'none';
             }
         }
@@ -2787,7 +2770,6 @@
             try {
                 await window.electronAPI.logout();
             } catch (error) {
-                console.error('Logout failed:', error);
             }
         }
 
@@ -2843,7 +2825,6 @@
             try {
                 if (window.electronAPI) {
                     const response = await window.electronAPI.fetchResumes();
-                    console.log('Resumes response:', response);
                     
                     if (response.success && response.resumes && response.resumes.length > 0) {
                         currentResumes = response.resumes;
@@ -2855,7 +2836,6 @@
                     }
                 }
             } catch (error) {
-                console.error('Error loading resumes:', error);
                 // Show no resumes state on error
                 noResumesState.style.display = 'block';
                 updateContinueButton();
@@ -3027,21 +3007,17 @@
             // Get the session data
             const sessionData = window.sessionData;
             
-            console.log('Activating session with data:', sessionData);
             
             try {
                 // Start interview session (transform window)
                 const result = await window.electronAPI.startInterviewSession(sessionData);
                 
                 if (result.success) {
-                    console.log('Interview session started successfully');
                     // Don't hide activation screen here - let handleModeChange do it
                 } else {
-                    console.error('Failed to start interview session:', result.error);
                     alert('Failed to start interview session. Please try again.');
                 }
             } catch (error) {
-                console.error('Error starting interview session:', error);
                 alert('Failed to start interview session. Please try again.');
             }
         }
@@ -3087,7 +3063,6 @@
                     }
                     
                     // Refresh user data and check cooldown when returning to dashboard
-                    console.log('[DASHBOARD] Returning to dashboard, refreshing data and checking cooldown');
                     setTimeout(async () => {
                         await loadUserData();
                         await loadSessions();
@@ -3117,29 +3092,23 @@
             
             // Fetch resume data if resumeId is provided
             if (sessionData.resumeId) {
-                console.log('[RESUME] Fetching resume data for ID:', sessionData.resumeId);
                 try {
                     const resumeResponse = await window.electronAPI.fetchResumeById(sessionData.resumeId);
                     if (resumeResponse.success) {
                         currentResumeData = resumeResponse.resume;
-                        console.log('[RESUME] Resume data loaded:', currentResumeData.fileName);
                         addInterviewChatMessage('system', `📄 Resume loaded: ${currentResumeData.fileName}`);
                     } else {
-                        console.error('[RESUME] Failed to fetch resume:', resumeResponse.error);
                         addInterviewChatMessage('system', '⚠️ Failed to load selected resume');
                     }
                 } catch (error) {
-                    console.error('[RESUME] Error fetching resume:', error);
                     addInterviewChatMessage('system', '⚠️ Error loading resume data');
                 }
             } else {
-                console.log('[RESUME] No resume selected for this session');
                 currentResumeData = null;
             }
             
             // Set Auto AI state from session data
             isAutoAnswerEnabled = sessionData.autoAnswer || false;
-            console.log('[AUTO AI] Auto Answer enabled:', isAutoAnswerEnabled);
             
             // Add welcome message with session info
             addInterviewChatMessage('system', `Interview session started for ${sessionData.position} at ${sessionData.company}. Good luck!`);
@@ -3197,7 +3166,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 await startTranscription();
                 
             } catch (error) {
-                console.error('Error requesting permissions:', error);
                 addInterviewChatMessage('system', 'Error setting up transcription. Please check your microphone permissions.');
             }
         }
@@ -3209,11 +3177,9 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 // The permission will be handled by getUserMedia call
                 // Just update status to indicate we're ready to try
                 updateMicrophoneStatus(false); // Start as false, will update when actually connected
-                addInterviewChatMessage('system', 'Click microphone button or speak to activate microphone.');
                 
                 return { success: true };
             } catch (error) {
-                console.error('Error requesting microphone permission:', error);
                 updateMicrophoneStatus(false);
                 addInterviewChatMessage('system', 'Microphone permission denied. Click the microphone button to try again.');
                 return { success: false, error: error.message };
@@ -3222,26 +3188,20 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
 
         async function requestScreenPermission() {
             try {
-                console.log('[SCREEN DEBUG] Testing screen recording access...');
                 
                 // Simple approach: just try to get sources and let system handle permissions
                 const sourcesResult = await window.electronAPI.getDesktopSources();
-                console.log('[SCREEN DEBUG] Sources result:', sourcesResult);
                 
                 if (sourcesResult.success && sourcesResult.sources.length > 0) {
-                    console.log('[SCREEN DEBUG] Screen recording available');
                     updateScreenShareStatus(true);
-                    addInterviewChatMessage('system', '📺 Screen recording ready.');
                     window.screenSourceId = sourcesResult.sources[0].id;
                 } else {
-                    console.log('[SCREEN DEBUG] No screen sources available');
                     updateScreenShareStatus(false);
                     addInterviewChatMessage('system', '📺 Screen recording not available. Permission may be needed.');
                 }
                 
                 return { success: true };
             } catch (error) {
-                console.error('[SCREEN ERROR] Error testing screen access:', error);
                 updateScreenShareStatus(false);
                 addInterviewChatMessage('system', `📺 Screen recording error: ${error.message}`);
                 return { success: false, error: error.message };
@@ -3261,7 +3221,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 }
                 
                 // Get microphone access
-                addInterviewChatMessage('system', '🔍 DEBUG: Requesting microphone access...');
                 try {
                     mediaStream = await navigator.mediaDevices.getUserMedia({
                         audio: {
@@ -3273,14 +3232,11 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                     });
 
                     const audioTracks = mediaStream.getAudioTracks();
-                    addInterviewChatMessage('system', `🔍 DEBUG: Microphone access granted, found ${audioTracks.length} audio tracks`);
 
                     // Update microphone status when successfully connected
                     if (mediaStream && audioTracks.length > 0) {
                         actualMicrophonePermission = true;
                         updateMicrophoneStatus(true);
-                        addInterviewChatMessage('system', 'Microphone connected and ready.');
-                        addInterviewChatMessage('system', `🔍 DEBUG: Audio track info: ${audioTracks[0].label || 'No label'}, enabled: ${audioTracks[0].enabled}`);
                     } else {
                         actualMicrophonePermission = true; // Permission granted but no tracks
                         addInterviewChatMessage('system', 'Microphone access granted but no audio tracks available.');
@@ -3295,13 +3251,11 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 }
 
                 // Create WebSocket connection to AssemblyAI
-                addInterviewChatMessage('system', '🔍 DEBUG: Connecting to AssemblyAI...');
                 assemblyAISocket = new WebSocket(
                     `wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&encoding=pcm_s16le&format_turns=true&token=${tokenResponse.token}`
                 );
 
                 assemblyAISocket.onopen = () => {
-                    addInterviewChatMessage('system', '✅ AssemblyAI WebSocket connected - Starting audio processing...');
                     isTranscribing = true;
                     transcriptState.isConnected = true;
                     transcriptState.isRecording = true;
@@ -3343,12 +3297,9 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                                     
                                     // Check for Auto AI answer if enabled
                                     if (isAutoAnswerEnabled && message.transcript.trim()) {
-                                        console.log('[AUTO AI] Auto answer is enabled, analyzing transcript for questions:', message.transcript);
                                         analyzeTranscriptForQuestions(message.transcript);
                                     } else if (!isAutoAnswerEnabled) {
-                                        console.log('[AUTO AI] Auto answer is disabled, skipping question check');
                                     } else {
-                                        console.log('[AUTO AI] Empty transcript, skipping question check');
                                     }
                                     
                                     // Save transcript to database (but don't block on errors)
@@ -3356,7 +3307,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                                         const fullTranscript = currentTranscripts.map(t => t.text).join(' ');
                                         window.electronAPI.saveTranscript(currentInterviewSessionData.sessionId, fullTranscript)
                                             .catch(error => {
-                                                console.log('Transcript save failed (continuing):', error.message);
                                             });
                                     }
                                 } else if (message.end_of_turn) {
@@ -3369,11 +3319,9 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                         }
 
                         if (message.type === 'Error') {
-                            console.error('AssemblyAI error:', message);
                             updateConnectionStatus('error', `Error: ${message.error}`);
                         }
                     } catch (e) {
-                        console.log('Non-JSON message received');
                     }
                 };
 
@@ -3384,7 +3332,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 };
 
                 assemblyAISocket.onclose = (event) => {
-                    addInterviewChatMessage('system', `🔍 DEBUG: WebSocket closed - Code: ${event.code}, Reason: ${event.reason || 'No reason given'}`);
                     isTranscribing = false;
                     transcriptState.isConnected = false;
                     transcriptState.isRecording = false;
@@ -3394,7 +3341,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 };
 
             } catch (error) {
-                console.error('Error starting transcription:', error);
                 updateConnectionStatus('error', `Failed to start: ${error.message}`);
                 // Update microphone status on error
                 updateMicrophoneStatus(false);
@@ -3402,10 +3348,8 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
         }
 
         async function startAudioProcessing() {
-            addInterviewChatMessage('system', '🔍 DEBUG: Starting audio processing...');
             audioContext = new AudioContext({ sampleRate: 16000 });
             const source = audioContext.createMediaStreamSource(mediaStream);
-            addInterviewChatMessage('system', `🔍 DEBUG: Audio context created, sample rate: ${audioContext.sampleRate}`);
 
             // Create AudioWorklet processor inline to avoid external files
             const processorCode = `
@@ -3508,13 +3452,10 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 const result = await window.electronAPI.endInterviewSession();
                 
                 if (result.success) {
-                    console.log('Interview session ended successfully');
                     addInterviewChatMessage('system', 'Session ended. Thank you for using Chiku AI!');
                 } else {
-                    console.error('Failed to end interview session:', result.error);
                 }
             } catch (error) {
-                console.error('Error ending interview session:', error);
             }
         }
 
@@ -3689,7 +3630,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
 
         // Auto AI Answer Functions
         async function analyzeTranscriptForQuestions(transcript) {
-            console.log('[AUTO AI] analyzeTranscriptForQuestions called with:', transcript);
             
             const questionKeywords = [
                 'what', 'how', 'why', 'when', 'where', 'who', 'which', 'would you', 
@@ -3698,7 +3638,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
             ];
 
             const normalizedTranscript = transcript.toLowerCase().trim();
-            console.log('[AUTO AI] Normalized transcript:', normalizedTranscript);
             
             // Check if it's likely a question
             const endsWithQuestionMark = normalizedTranscript.endsWith('?');
@@ -3706,19 +3645,12 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 normalizedTranscript.includes(keyword.toLowerCase())
             );
             
-            console.log('[AUTO AI] Question analysis:', {
-                endsWithQuestionMark,
-                containsQuestionKeywords,
-                isQuestion: endsWithQuestionMark || containsQuestionKeywords
-            });
+            // Question analysis completed
             
             if (endsWithQuestionMark || containsQuestionKeywords) {
                 const questionHash = btoa(transcript).substring(0, 10); // Simple hash for deduplication
                 
                 if (!answeredQuestions.has(questionHash)) {
-                    console.log('[AUTO AI] New question detected:', transcript);
-                    console.log('[AUTO AI] Question hash:', questionHash);
-                    console.log('[AUTO AI] Previously answered questions:', Array.from(answeredQuestions));
                     answeredQuestions.add(questionHash);
                     
                     // Add slight delay to feel natural
@@ -3726,7 +3658,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                         autoAnswerQuestion(transcript);
                     }, 1500);
                 } else {
-                    console.log('[AUTO AI] Question already answered, skipping:', transcript);
                 }
             }
         }
@@ -3766,14 +3697,12 @@ IMPORTANT:
                     isCoding: false
                 });
                 
-                console.log('[AUTO AI] Streaming response completed:', response);
                 
                 // Cleanup streaming state for this message
                 streamingMessages.delete(messageId);
                 currentStreamingMessageId = null;
                 
             } catch (error) {
-                console.error('[AUTO AI] Error generating streaming answer:', error);
                 if (currentStreamingMessageId) {
                     const errorMessage = `**Q:** ${questionText}\n\n**A:** Sorry, I couldn't generate an answer right now. Please respond manually.`;
                     updateInterviewChatMessage(currentStreamingMessageId, errorMessage);
@@ -3784,29 +3713,23 @@ IMPORTANT:
         }
 
         function updateLastAIMessage(newContent) {
-            console.log('[AUTO AI] updateLastAIMessage called with:', newContent);
             
             const chatContainer = document.getElementById('interviewChatMessages');
             if (!chatContainer) {
-                console.error('[AUTO AI] Chat container not found');
                 return;
             }
             
             const messages = chatContainer.querySelectorAll('.interview-chat-message');
             const lastMessage = messages[messages.length - 1];
             
-            console.log('[AUTO AI] Found', messages.length, 'messages, last message:', lastMessage);
             
             if (lastMessage && lastMessage.classList.contains('ai-message')) {
-                console.log('[AUTO AI] Updating last AI message');
                 const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 lastMessage.innerHTML = `
                     <div><strong>AI:</strong> ${newContent}</div>
                     <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">${timestamp}</div>
                 `;
-                console.log('[AUTO AI] Message updated successfully');
             } else {
-                console.error('[AUTO AI] Last message is not an AI message or no messages found');
             }
         }
 
@@ -3910,7 +3833,6 @@ IMPORTANT:
                 currentStreamingMessageId = null;
                 
             } catch (error) {
-                console.error('Error with AI Answer:', error);
                 if (currentStreamingMessageId) {
                     updateInterviewChatMessage(currentStreamingMessageId, 'Error generating AI answer. Please try again.');
                     streamingMessages.delete(currentStreamingMessageId);
@@ -3926,21 +3848,16 @@ IMPORTANT:
             btn.classList.add('active');
             
             try {
-                console.log('[UI DEBUG] Analyze Screen button clicked');
                 
                 // Check if screen sharing is enabled
                 if (!isScreenShareOn) {
-                    console.log('[UI DEBUG] Screen sharing is disabled');
                     addInterviewChatMessage('system', 'Screen sharing is disabled. Please enable it first to analyze screen.');
                     return;
                 }
                 
-                console.log('[UI DEBUG] Starting screen capture...');
-                addInterviewChatMessage('system', 'Capturing and analyzing screen content...');
                 
                 // Get screen source ID
                 const sourceResult = await window.electronAPI.captureScreen();
-                console.log('[UI DEBUG] Source result:', sourceResult);
                 
                 if (!sourceResult.success || !sourceResult.sourceId) {
                     addInterviewChatMessage('system', `Screen capture failed: ${sourceResult.error || 'Unknown error'}`);
@@ -3950,9 +3867,7 @@ IMPORTANT:
                 // Take screenshot with getUserMedia (this will trigger permission dialog if needed)
                 let imageData;
                 try {
-                    addInterviewChatMessage('system', `🔍 DEBUG: Attempting screenshot with source: ${sourceResult.sourceId}`);
                     imageData = await takeScreenshotWithSource(sourceResult.sourceId);
-                    addInterviewChatMessage('system', `✅ Screenshot captured successfully (${Math.round(imageData.length/1024)}KB)`);
                 } catch (error) {
                     addInterviewChatMessage('system', `❌ Screenshot failed: ${error.name} - ${error.message}`);
                     if (error.message.includes('Could not start video source') || error.message.includes('Permission denied')) {
@@ -3966,7 +3881,6 @@ IMPORTANT:
                 // Analyze screen content
                 const analysisResult = await window.electronAPI.analyzeScreenContent(imageData);
                 
-                console.log('[UI DEBUG] Analysis result:', analysisResult);
                 
                 if (analysisResult.success) {
                     if (analysisResult.question && analysisResult.question !== "No questions found on screen.") {
@@ -4005,7 +3919,6 @@ IMPORTANT:
                 }
                 
             } catch (error) {
-                console.error('Error with screen analysis:', error);
                 addInterviewChatMessage('system', 'Error analyzing screen content. Please try again.');
                 
                 // Cleanup streaming state if error occurred
@@ -4118,7 +4031,6 @@ IMPORTANT:
                 currentStreamingMessageId = null;
                 
             } catch (error) {
-                console.error('Error with chat:', error);
                 if (currentStreamingMessageId) {
                     updateInterviewChatMessage(currentStreamingMessageId, 'Error generating response. Please try again.');
                     streamingMessages.delete(currentStreamingMessageId);
@@ -4327,8 +4239,7 @@ IMPORTANT:
                 try {
                     await startTranscription();
                 } catch (error) {
-                    console.error('Error starting transcription:', error);
-                    actualMicrophonePermission = false;
+                        actualMicrophonePermission = false;
                     updateMicrophoneStatus(false);
                     addInterviewChatMessage('system', '🎤 Microphone permission denied. Please enable in System Preferences and restart the app.');
                     return;
@@ -4338,12 +4249,10 @@ IMPORTANT:
             
             if (!mediaStream || !isMicrophoneOn) {
                 // Try to start transcription which will request microphone permission
-                addInterviewChatMessage('system', '🎤 Starting microphone...');
                 try {
                     await startTranscription();
                 } catch (error) {
-                    console.error('Error starting transcription:', error);
-                    addInterviewChatMessage('system', '🎤 Failed to access microphone. Please check permissions in system preferences.');
+                        addInterviewChatMessage('system', '🎤 Failed to access microphone. Please check permissions in system preferences.');
                 }
                 return;
             }
@@ -4370,7 +4279,6 @@ IMPORTANT:
 
         async function toggleScreenShare() {
             try {
-                console.log('[UI DEBUG] Screen share button clicked, current state:', isScreenShareOn);
                 const analyzeBtn = document.getElementById('analyzeScreenBtnInterview');
                 
                 // Check actual permission first
@@ -4393,20 +4301,16 @@ IMPORTANT:
                 
                 if (!isScreenShareOn) {
                     // Permission granted, enable screen sharing
-                    console.log('[UI DEBUG] Screen recording enabled via toggle');
                     actualScreenSharePermission = true;
                     updateScreenShareStatus(true);
-                    addInterviewChatMessage('system', '📺 Screen recording enabled');
                     
                     // Get screen sources for analysis
                     try {
                         const sourcesResult = await window.electronAPI.getDesktopSources();
                         if (sourcesResult && sourcesResult.success && sourcesResult.sources.length > 0) {
                             window.screenSourceId = sourcesResult.sources[0].id;
-                            console.log('[UI DEBUG] Stored screen source ID via toggle:', window.screenSourceId);
                         }
                     } catch (sourceError) {
-                        console.log('[UI DEBUG] Could not get screen sources, but permission is granted');
                     }
                     
                     // Re-enable the analyze screen button
@@ -4416,10 +4320,8 @@ IMPORTANT:
                         analyzeBtn.title = 'Analyze Screen';
                     }
                 } else {
-                    console.log('[UI DEBUG] Disabling screen recording');
                     // Disable screen sharing functionality
                     updateScreenShareStatus(false);
-                    addInterviewChatMessage('system', '📺 Screen recording disabled');
                     
                     // Disable the analyze screen button
                     if (analyzeBtn) {
@@ -4429,7 +4331,6 @@ IMPORTANT:
                     }
                 }
             } catch (error) {
-                console.error('[UI ERROR] Screen share toggle error:', error);
                 actualScreenSharePermission = false;
                 updateScreenShareStatus(false);
                 addInterviewChatMessage('system', '📺 Screen recording error: ' + error.message);
@@ -4440,7 +4341,6 @@ IMPORTANT:
         async function takeScreenshotWithSource(sourceId) {
             return new Promise(async (resolve, reject) => {
                 try {
-                    console.log(`[SCREENSHOT DEBUG] Starting getUserMedia with source: ${sourceId}`);
                     
                     // Use getUserMedia to capture the screen with the specific source
                     const stream = await navigator.mediaDevices.getUserMedia({
@@ -4457,7 +4357,6 @@ IMPORTANT:
                         }
                     });
 
-                    console.log('[SCREENSHOT DEBUG] Got media stream, creating video element...');
                     
                     // Create video element to capture frame
                     const video = document.createElement('video');
@@ -4466,7 +4365,6 @@ IMPORTANT:
                     video.muted = true;
 
                     video.onloadedmetadata = () => {
-                        console.log(`[SCREENSHOT DEBUG] Video loaded: ${video.videoWidth}x${video.videoHeight}`);
                         
                         // Wait a bit for the video to start
                         setTimeout(() => {
@@ -4482,8 +4380,6 @@ IMPORTANT:
                                 // Convert to base64
                                 const imageData = canvas.toDataURL('image/png');
                                 
-                                console.log(`[SCREENSHOT DEBUG] Screenshot captured: ${imageData.length} characters`);
-                                console.log(`[SCREENSHOT DEBUG] Canvas size: ${canvas.width}x${canvas.height}`);
                                 
                                 // Stop the stream
                                 stream.getTracks().forEach(track => track.stop());
@@ -4497,13 +4393,11 @@ IMPORTANT:
                     };
 
                     video.onerror = (error) => {
-                        console.error('[SCREENSHOT ERROR] Video error:', error);
                         stream.getTracks().forEach(track => track.stop());
                         reject(new Error('Failed to load video stream'));
                     };
 
                 } catch (error) {
-                    console.error('[SCREENSHOT ERROR] getUserMedia failed:', error);
                     reject(error);
                 }
             });
@@ -4515,8 +4409,6 @@ IMPORTANT:
             const micPermission = await checkMicrophonePermission();
             const screenPermission = await checkScreenSharePermission();
             
-            console.log('[PERMISSION CHECK] Microphone:', micPermission ? 'GRANTED' : 'DENIED');
-            console.log('[PERMISSION CHECK] Screen Share:', screenPermission ? 'GRANTED' : 'DENIED');
             
             // Update button states based on actual permissions
             updateMicrophoneStatus(false); // OFF initially, but will show DENIED if no permission
