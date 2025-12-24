@@ -1,4 +1,5 @@
 import { app, BrowserWindow, shell, ipcMain, net, Tray, Menu, nativeImage, desktopCapturer, screen } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import Store from 'electron-store';
 import { v4 as uuidv4 } from 'uuid';
@@ -195,6 +196,7 @@ class ChikuDesktopApp {
     app.whenReady().then(() => {
       this.createMainWindow();
       this.setupIPC();
+      this.setupAutoUpdater();
     });
 
     app.on('window-all-closed', () => {
@@ -682,6 +684,20 @@ class ChikuDesktopApp {
       await shell.openExternal(loginUrl);
     });
 
+    // Auto-updater IPC handlers
+    ipcMain.handle('check-for-updates', async () => {
+      try {
+        return await autoUpdater.checkForUpdates();
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+        return null;
+      }
+    });
+    
+    ipcMain.handle('quit-and-install', () => {
+      autoUpdater.quitAndInstall();
+    });
+    
     // Handle logout
     ipcMain.handle('logout', async () => {
       // Clear all user-related data including cached cooldown information
@@ -1328,6 +1344,43 @@ class ChikuDesktopApp {
     } else {
       console.log('[AUTH] ❌ URL does not contain auth/success - ignoring');
     }
+  }
+  
+  private setupAutoUpdater() {
+    // Configure auto-updater
+    autoUpdater.checkForUpdatesAndNotify();
+    
+    autoUpdater.on('checking-for-update', () => {
+      console.log('Checking for update...');
+    });
+    
+    autoUpdater.on('update-available', (info) => {
+      console.log('Update available.', info);
+      if (this.mainWindow) {
+        this.mainWindow.webContents.send('update-available', info);
+      }
+    });
+    
+    autoUpdater.on('update-not-available', (info) => {
+      console.log('Update not available.', info);
+    });
+    
+    autoUpdater.on('error', (err) => {
+      console.error('Error in auto-updater:', err);
+    });
+    
+    autoUpdater.on('download-progress', (progressObj) => {
+      if (this.mainWindow) {
+        this.mainWindow.webContents.send('download-progress', progressObj);
+      }
+    });
+    
+    autoUpdater.on('update-downloaded', (info) => {
+      console.log('Update downloaded', info);
+      if (this.mainWindow) {
+        this.mainWindow.webContents.send('update-downloaded', info);
+      }
+    });
   }
 }
 

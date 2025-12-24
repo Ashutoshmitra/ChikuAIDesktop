@@ -13,7 +13,8 @@
     "start": "electron dist/main.js",
     "dist": "npm run build && electron-builder",
     "dist:mac": "npm run build && electron-builder --mac",
-    "pack": "npm run build && electron-builder --dir"
+    "pack": "npm run build && electron-builder --dir",
+    "publish": "npm run build && electron-builder --publish=always"
   },
   "devDependencies": {
     "@babel/core": "^7.0.0",
@@ -35,6 +36,7 @@
   },
   "dependencies": {
     "electron-store": "^8.1.0",
+    "electron-updater": "^6.6.2",
     "uuid": "^13.0.0"
   },
   "build": {
@@ -48,7 +50,11 @@
       "src/renderer.html"
     ],
     "mac": {
-      "bundleVersion": "1.0.0"
+      "bundleVersion": "1.0.0",
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": "nsis"
     },
     "protocols": [
       {
@@ -57,7 +63,12 @@
           "chiku-ai-interview-assistant"
         ]
       }
-    ]
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "Ashutoshmitra",
+      "repo": "ChikuAIDesktop"
+    }
   },
   "author": "Chiku AI"
 }
