@@ -19,12 +19,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resizeWindow: (width: number, height: number) => ipcRenderer.invoke('resize-window', width, height),
   debugLog: (message: string) => ipcRenderer.invoke('debug-log', message),
   
-  // Audio and Screen Capture APIs
-  requestPermissions: () => ipcRenderer.invoke('request-permissions'),
-  startAudioCapture: () => ipcRenderer.invoke('start-audio-capture'),
-  stopAudioCapture: () => ipcRenderer.invoke('stop-audio-capture'),
-  startScreenCapture: () => ipcRenderer.invoke('start-screen-capture'),
-  stopScreenCapture: () => ipcRenderer.invoke('stop-screen-capture'),
+  // Permission and Capture APIs
+  requestMicrophonePermission: () => ipcRenderer.invoke('request-microphone-permission'),
+  getDesktopSources: () => ipcRenderer.invoke('get-desktop-sources'),
   captureScreen: () => ipcRenderer.invoke('capture-screen'),
   
   // Transcription APIs

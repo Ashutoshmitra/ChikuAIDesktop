@@ -194,6 +194,7 @@ class ChikuDesktopApp {
     });
 
     app.whenReady().then(() => {
+      this.setupPermissionHandlers();
       this.createMainWindow();
       this.setupIPC();
       this.setupAutoUpdater();
@@ -225,6 +226,58 @@ class ChikuDesktopApp {
       }
     });
   }
+
+  private setupPermissionHandlers() {
+    const { session, systemPreferences } = require('electron');
+    
+    // Permission handler that properly handles screen recording permission dialogs
+    session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback, details) => {
+      console.log('Permission request:', permission, details);
+      
+      if (permission === 'media') {
+        // Check if this is a screen capture request (empty mediaTypes array)
+        if (details.mediaTypes && details.mediaTypes.length === 0) {
+          console.log('[PERMISSION DEBUG] Screen capture permission requested');
+          
+          // For screen capture on macOS, check if permission is already granted
+          if (process.platform === 'darwin') {
+            const screenAccess = systemPreferences.getMediaAccessStatus('screen');
+            console.log('[PERMISSION DEBUG] Current screen access status:', screenAccess);
+            
+            if (screenAccess === 'granted') {
+              console.log('[PERMISSION DEBUG] Screen recording already granted, allowing');
+              callback(true);
+            } else if (screenAccess === 'denied') {
+              console.log('[PERMISSION DEBUG] Screen recording denied at system level');
+              if (!app.isPackaged) {
+                console.log('[DEV HELP] To fix this in development:');
+                console.log('[DEV HELP] 1. Open System Settings → Privacy & Security → Screen Recording');
+                console.log('[DEV HELP] 2. Enable permission for "Electron" or "Terminal"');
+                console.log('[DEV HELP] 3. Restart this app');
+              }
+              callback(false);
+            } else {
+              // Status is 'not-determined' - let the system show the permission dialog
+              console.log('[PERMISSION DEBUG] Screen recording permission not determined, allowing to trigger system dialog');
+              callback(true);
+            }
+          } else {
+            // Non-macOS platforms
+            callback(true);
+          }
+        } else {
+          // Regular media (microphone/camera) request
+          console.log('[PERMISSION DEBUG] Regular media permission requested');
+          callback(true);
+        }
+      } else if (permission === 'notifications') {
+        callback(true);
+      } else {
+        callback(false);
+      }
+    });
+  }
+
 
   private createMainWindow() {
     this.mainWindow = new BrowserWindow({
@@ -486,14 +539,20 @@ class ChikuDesktopApp {
                   if (updateResponse.success && updateResponse.user) {
                     // Update cached remaining minutes with latest from DB
                     const newRemainingMinutes = updateResponse.user.remainingMinutes || 0;
+                    console.log(`[MINUTES DEBUG] Backend returned remainingMinutes: ${newRemainingMinutes}`);
+                    console.log(`[MINUTES DEBUG] Full user object:`, updateResponse.user);
+                    
                     this.store.set('cachedRemainingMinutes', Number(newRemainingMinutes) || 0);
                     
                     // End session when no minutes remaining
                     if (newRemainingMinutes <= 0) {
                       console.log('Paid user minutes exhausted, ending session');
+                      console.log(`[MINUTES DEBUG] Session ended because remainingMinutes = ${newRemainingMinutes}`);
                       this.endCurrentSession();
                       return;
                     }
+                  } else {
+                    console.log('[MINUTES DEBUG] Invalid updateResponse:', updateResponse);
                   }
                 } catch (error) {
                   console.log('Error updating real-time session minutes:', error);
@@ -864,50 +923,88 @@ class ChikuDesktopApp {
       }
     });
 
-    // Screen and Audio Capture APIs
-    ipcMain.handle('request-permissions', async () => {
+    // Permission Management APIs
+    ipcMain.handle('request-microphone-permission', async () => {
       try {
-        // Request microphone access by trying to get sources
-        await desktopCapturer.getSources({ types: ['screen'] });
+        // This will be handled by the permission handler we'll set up
         return { success: true };
       } catch (error) {
-        console.error('Error requesting permissions:', error);
+        console.error('Error requesting microphone permission:', error);
         return { success: false, error: error.message };
       }
     });
 
-    ipcMain.handle('start-screen-capture', async () => {
+
+
+    ipcMain.handle('get-desktop-sources', async () => {
       try {
+        console.log('[SCREEN DEBUG] Getting desktop sources...');
+        
+        // Get both screen and window sources
         const sources = await desktopCapturer.getSources({
-          types: ['screen'],
-          thumbnailSize: { width: 1920, height: 1080 }
+          types: ['screen', 'window'],
+          thumbnailSize: { width: 500, height: 500 }
         });
         
-        if (sources.length > 0) {
-          return { success: true, sourceId: sources[0].id };
-        }
-        return { success: false, error: 'No screen sources available' };
+        console.log(`[SCREEN DEBUG] Found ${sources.length} total sources:`);
+        sources.forEach((source, index) => {
+          const type = source.id.includes('screen:') ? 'SCREEN' : 'WINDOW';
+          console.log(`[SCREEN DEBUG] Source ${index}: ${type} - ID=${source.id}, Name=${source.name}`);
+        });
+        
+        // Filter out our own app window
+        const filteredSources = sources.filter(source => 
+          !source.name.toLowerCase().includes('chiku') && 
+          !source.name.toLowerCase().includes('electron')
+        );
+        
+        console.log(`[SCREEN DEBUG] Filtered to ${filteredSources.length} sources (excluding our app)`);
+        
+        return { 
+          success: true, 
+          sources: filteredSources.map(source => ({
+            id: source.id,
+            name: source.name,
+            thumbnail: source.thumbnail.toDataURL(),
+            type: source.id.includes('screen:') ? 'screen' : 'window'
+          }))
+        };
       } catch (error) {
-        console.error('Error starting screen capture:', error);
+        console.error('[SCREEN ERROR] Error getting desktop sources:', error);
         return { success: false, error: error.message };
       }
     });
 
     ipcMain.handle('capture-screen', async () => {
       try {
+        console.log('[CAPTURE DEBUG] Starting real screen capture...');
+        
+        // Get screen sources to get the source ID
         const sources = await desktopCapturer.getSources({
           types: ['screen'],
-          thumbnailSize: { width: 1920, height: 1080 }
+          thumbnailSize: { width: 150, height: 150 } // Small thumbnail, we don't need it
         });
         
-        if (sources.length > 0) {
-          const source = sources[0];
-          const dataUrl = source.thumbnail.toDataURL();
-          return { success: true, imageData: dataUrl };
+        console.log(`[CAPTURE DEBUG] Found ${sources.length} screen sources`);
+        
+        if (sources.length === 0) {
+          console.log('[CAPTURE ERROR] No screen sources available');
+          return { success: false, error: 'No screen sources available' };
         }
-        return { success: false, error: 'No screen sources available' };
+        
+        // Use the first (primary) screen
+        const source = sources[0];
+        console.log(`[CAPTURE DEBUG] Using source: ${source.name} (ID: ${source.id})`);
+        
+        // Return the source ID so renderer can capture with getUserMedia
+        return { 
+          success: true, 
+          sourceId: source.id,
+          sourceName: source.name
+        };
+        
       } catch (error) {
-        console.error('Error capturing screen:', error);
+        console.error('[CAPTURE ERROR] Error getting screen sources:', error);
         return { success: false, error: error.message };
       }
     });
@@ -1019,14 +1116,24 @@ class ChikuDesktopApp {
     // Screen Analysis API - Use webapp backend
     ipcMain.handle('analyze-screen-content', async (event, imageData) => {
       try {
+        console.log('[ANALYZE DEBUG] Starting screen content analysis...');
+        console.log(`[ANALYZE DEBUG] Image data received: ${imageData ? 'YES' : 'NO'}`);
+        console.log(`[ANALYZE DEBUG] Image data size: ${imageData ? imageData.length : 0} characters`);
+        
         if (!imageData) {
+          console.log('[ANALYZE ERROR] No image data provided');
           return { success: false, error: 'Screen image data is required' };
         }
+
+        console.log(`[ANALYZE DEBUG] Image data prefix: ${imageData.substring(0, 100)}...`);
+        console.log('[ANALYZE DEBUG] Making request to webapp backend...');
 
         const response = await this.makeAuthenticatedRequest('/api/analyze-screen', {
           method: 'POST',
           body: JSON.stringify({ imageData })
         }) as ScreenAnalysisResponse;
+        
+        console.log('[ANALYZE DEBUG] Webapp response:', JSON.stringify(response, null, 2));
         
         return { 
           success: true,
@@ -1034,7 +1141,7 @@ class ChikuDesktopApp {
           isCoding: response.isCoding || false
         };
       } catch (error: any) {
-        console.error('Screen analysis error from webapp backend:', error);
+        console.error('[ANALYZE ERROR] Screen analysis error from webapp backend:', error);
         return { success: false, error: 'Failed to analyze screen content via webapp backend' };
       }
     });

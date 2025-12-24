@@ -1124,6 +1124,17 @@
             background: rgba(239, 68, 68, 0.2);
         }
 
+        /* Denied (PERMISSION DENIED) state - orange/amber */
+        .status-indicator-btn.denied {
+            background: rgba(245, 158, 11, 0.15);
+            border-color: rgba(245, 158, 11, 0.3);
+            color: rgba(245, 158, 11, 1);
+        }
+
+        .status-indicator-btn.denied:hover {
+            background: rgba(245, 158, 11, 0.2);
+        }
+
         .status-indicator-btn svg {
             width: 12px;
             height: 12px;
@@ -3144,7 +3155,7 @@
             initializeAutoAIToggle();
             
             // Initialize status indicators
-            initializeStatusIndicators();
+            await initializeStatusIndicators();
             
             // Request permissions and start transcription
             await requestPermissionsAndStartTranscription();
@@ -3176,28 +3187,64 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
 
         async function requestPermissionsAndStartTranscription() {
             try {
-                // Request permissions first
-                const permResult = await window.electronAPI.requestPermissions();
-                if (!permResult.success) {
-                    addInterviewChatMessage('system', 'Failed to get permissions. Some features may not work.');
-                }
-
-                // Get screen capture capability
-                const screenResult = await window.electronAPI.startScreenCapture();
-                if (screenResult.success) {
-                    updateScreenShareStatus(true);
-                    addInterviewChatMessage('system', 'Screen capture ready.');
-                } else {
-                    updateScreenShareStatus(false);
-                    addInterviewChatMessage('system', 'Screen capture not available.');
-                }
-
+                // Request microphone permission
+                await requestMicrophonePermission();
+                
+                // Request screen permission
+                await requestScreenPermission();
+                
                 // Start audio transcription
                 await startTranscription();
                 
             } catch (error) {
                 console.error('Error requesting permissions:', error);
                 addInterviewChatMessage('system', 'Error setting up transcription. Please check your microphone permissions.');
+            }
+        }
+
+        async function requestMicrophonePermission() {
+            try {
+                updateConnectionStatus('connecting', 'Requesting microphone permission...');
+                
+                // The permission will be handled by getUserMedia call
+                // Just update status to indicate we're ready to try
+                updateMicrophoneStatus(false); // Start as false, will update when actually connected
+                addInterviewChatMessage('system', 'Click microphone button or speak to activate microphone.');
+                
+                return { success: true };
+            } catch (error) {
+                console.error('Error requesting microphone permission:', error);
+                updateMicrophoneStatus(false);
+                addInterviewChatMessage('system', 'Microphone permission denied. Click the microphone button to try again.');
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function requestScreenPermission() {
+            try {
+                console.log('[SCREEN DEBUG] Testing screen recording access...');
+                
+                // Simple approach: just try to get sources and let system handle permissions
+                const sourcesResult = await window.electronAPI.getDesktopSources();
+                console.log('[SCREEN DEBUG] Sources result:', sourcesResult);
+                
+                if (sourcesResult.success && sourcesResult.sources.length > 0) {
+                    console.log('[SCREEN DEBUG] Screen recording available');
+                    updateScreenShareStatus(true);
+                    addInterviewChatMessage('system', '📺 Screen recording ready.');
+                    window.screenSourceId = sourcesResult.sources[0].id;
+                } else {
+                    console.log('[SCREEN DEBUG] No screen sources available');
+                    updateScreenShareStatus(false);
+                    addInterviewChatMessage('system', '📺 Screen recording not available. Permission may be needed.');
+                }
+                
+                return { success: true };
+            } catch (error) {
+                console.error('[SCREEN ERROR] Error testing screen access:', error);
+                updateScreenShareStatus(false);
+                addInterviewChatMessage('system', `📺 Screen recording error: ${error.message}`);
+                return { success: false, error: error.message };
             }
         }
 
@@ -3214,28 +3261,47 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 }
                 
                 // Get microphone access
-                mediaStream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        sampleRate: 16000,
-                        channelCount: 1,
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                    },
-                });
+                addInterviewChatMessage('system', '🔍 DEBUG: Requesting microphone access...');
+                try {
+                    mediaStream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            sampleRate: 16000,
+                            channelCount: 1,
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                        },
+                    });
 
-                // Update microphone status when successfully connected
-                if (mediaStream && mediaStream.getAudioTracks().length > 0) {
-                    updateMicrophoneStatus(true);
-                    addInterviewChatMessage('system', 'Microphone connected and ready.');
+                    const audioTracks = mediaStream.getAudioTracks();
+                    addInterviewChatMessage('system', `🔍 DEBUG: Microphone access granted, found ${audioTracks.length} audio tracks`);
+
+                    // Update microphone status when successfully connected
+                    if (mediaStream && audioTracks.length > 0) {
+                        actualMicrophonePermission = true;
+                        updateMicrophoneStatus(true);
+                        addInterviewChatMessage('system', 'Microphone connected and ready.');
+                        addInterviewChatMessage('system', `🔍 DEBUG: Audio track info: ${audioTracks[0].label || 'No label'}, enabled: ${audioTracks[0].enabled}`);
+                    } else {
+                        actualMicrophonePermission = true; // Permission granted but no tracks
+                        addInterviewChatMessage('system', 'Microphone access granted but no audio tracks available.');
+                        updateMicrophoneStatus(false);
+                        return;
+                    }
+                } catch (micError) {
+                    actualMicrophonePermission = false; // Permission denied
+                    addInterviewChatMessage('system', `❌ Microphone access failed: ${micError.name} - ${micError.message}`);
+                    updateMicrophoneStatus(false);
+                    return;
                 }
 
                 // Create WebSocket connection to AssemblyAI
+                addInterviewChatMessage('system', '🔍 DEBUG: Connecting to AssemblyAI...');
                 assemblyAISocket = new WebSocket(
                     `wss://streaming.assemblyai.com/v3/ws?sample_rate=16000&encoding=pcm_s16le&format_turns=true&token=${tokenResponse.token}`
                 );
 
                 assemblyAISocket.onopen = () => {
-                    console.log('AssemblyAI WebSocket connected');
+                    addInterviewChatMessage('system', '✅ AssemblyAI WebSocket connected - Starting audio processing...');
                     isTranscribing = true;
                     transcriptState.isConnected = true;
                     transcriptState.isRecording = true;
@@ -3312,13 +3378,13 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 };
 
                 assemblyAISocket.onerror = (event) => {
-                    console.error('WebSocket error:', event);
+                    addInterviewChatMessage('system', `❌ WebSocket error occurred - check connection`);
                     transcriptState.isConnected = false;
                     updateConnectionStatus('error', 'Connection error occurred');
                 };
 
                 assemblyAISocket.onclose = (event) => {
-                    console.log('WebSocket closed:', event.code, event.reason);
+                    addInterviewChatMessage('system', `🔍 DEBUG: WebSocket closed - Code: ${event.code}, Reason: ${event.reason || 'No reason given'}`);
                     isTranscribing = false;
                     transcriptState.isConnected = false;
                     transcriptState.isRecording = false;
@@ -3336,8 +3402,10 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
         }
 
         async function startAudioProcessing() {
+            addInterviewChatMessage('system', '🔍 DEBUG: Starting audio processing...');
             audioContext = new AudioContext({ sampleRate: 16000 });
             const source = audioContext.createMediaStreamSource(mediaStream);
+            addInterviewChatMessage('system', `🔍 DEBUG: Audio context created, sample rate: ${audioContext.sampleRate}`);
 
             // Create AudioWorklet processor inline to avoid external files
             const processorCode = `
@@ -3858,24 +3926,47 @@ IMPORTANT:
             btn.classList.add('active');
             
             try {
+                console.log('[UI DEBUG] Analyze Screen button clicked');
+                
                 // Check if screen sharing is enabled
                 if (!isScreenShareOn) {
+                    console.log('[UI DEBUG] Screen sharing is disabled');
                     addInterviewChatMessage('system', 'Screen sharing is disabled. Please enable it first to analyze screen.');
                     return;
                 }
                 
+                console.log('[UI DEBUG] Starting screen capture...');
                 addInterviewChatMessage('system', 'Capturing and analyzing screen content...');
                 
-                // Capture current screen
-                const captureResult = await window.electronAPI.captureScreen();
+                // Get screen source ID
+                const sourceResult = await window.electronAPI.captureScreen();
+                console.log('[UI DEBUG] Source result:', sourceResult);
                 
-                if (!captureResult.success) {
-                    addInterviewChatMessage('system', `Screen capture failed: ${captureResult.error}`);
+                if (!sourceResult.success || !sourceResult.sourceId) {
+                    addInterviewChatMessage('system', `Screen capture failed: ${sourceResult.error || 'Unknown error'}`);
+                    return;
+                }
+
+                // Take screenshot with getUserMedia (this will trigger permission dialog if needed)
+                let imageData;
+                try {
+                    addInterviewChatMessage('system', `🔍 DEBUG: Attempting screenshot with source: ${sourceResult.sourceId}`);
+                    imageData = await takeScreenshotWithSource(sourceResult.sourceId);
+                    addInterviewChatMessage('system', `✅ Screenshot captured successfully (${Math.round(imageData.length/1024)}KB)`);
+                } catch (error) {
+                    addInterviewChatMessage('system', `❌ Screenshot failed: ${error.name} - ${error.message}`);
+                    if (error.message.includes('Could not start video source') || error.message.includes('Permission denied')) {
+                        addInterviewChatMessage('system', '🔒 Screen recording permission needed');
+                        addInterviewChatMessage('system', '💡 In development mode, try: System Preferences > Privacy & Security > Screen Recording > Add Terminal.app');
+                        addInterviewChatMessage('system', '✅ Or test in production build: npm run dist');
+                    }
                     return;
                 }
 
                 // Analyze screen content
-                const analysisResult = await window.electronAPI.analyzeScreenContent(captureResult.imageData);
+                const analysisResult = await window.electronAPI.analyzeScreenContent(imageData);
+                
+                console.log('[UI DEBUG] Analysis result:', analysisResult);
                 
                 if (analysisResult.success) {
                     if (analysisResult.question && analysisResult.question !== "No questions found on screen.") {
@@ -4127,6 +4218,54 @@ IMPORTANT:
             }
         }
 
+        // Permission status tracking
+        let actualMicrophonePermission = false;
+        let actualScreenSharePermission = false;
+        
+        // Check actual microphone permission status
+        async function checkMicrophonePermission() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+                actualMicrophonePermission = true;
+                return true;
+            } catch (error) {
+                actualMicrophonePermission = false;
+                return false;
+            }
+        }
+        
+        // Check actual screen sharing permission status
+        async function checkScreenSharePermission() {
+            try {
+                const sourcesResult = await window.electronAPI.getDesktopSources();
+                if (sourcesResult.success && sourcesResult.sources.length > 0) {
+                    // Try to actually get screen capture permission
+                    const testStream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            mandatory: {
+                                chromeMediaSource: 'desktop',
+                                chromeMediaSourceId: sourcesResult.sources[0].id,
+                                minWidth: 100,
+                                maxWidth: 100,
+                                minHeight: 100,
+                                maxHeight: 100
+                            }
+                        }
+                    });
+                    testStream.getTracks().forEach(track => track.stop());
+                    actualScreenSharePermission = true;
+                    return true;
+                }
+                actualScreenSharePermission = false;
+                return false;
+            } catch (error) {
+                actualScreenSharePermission = false;
+                return false;
+            }
+        }
+
         // Status indicator functions
         function updateMicrophoneStatus(isOn) {
             isMicrophoneOn = isOn;
@@ -4135,8 +4274,14 @@ IMPORTANT:
             
             if (!micBtn || !micText) return;
             
-            micBtn.classList.remove('active', 'inactive');
-            if (isOn) {
+            micBtn.classList.remove('active', 'inactive', 'denied');
+            
+            if (!actualMicrophonePermission) {
+                // Permission denied
+                micBtn.classList.add('denied');
+                micText.textContent = 'DENIED';
+                micBtn.title = 'Microphone: Permission denied (click to request permission)';
+            } else if (isOn) {
                 micBtn.classList.add('active');
                 micText.textContent = 'ON';
                 micBtn.title = 'Microphone: ON (click to mute)';
@@ -4154,8 +4299,14 @@ IMPORTANT:
             
             if (!screenBtn || !screenText) return;
             
-            screenBtn.classList.remove('active', 'inactive');
-            if (isOn) {
+            screenBtn.classList.remove('active', 'inactive', 'denied');
+            
+            if (!actualScreenSharePermission) {
+                // Permission denied
+                screenBtn.classList.add('denied');
+                screenText.textContent = 'DENIED';
+                screenBtn.title = 'Screen Share: Permission denied (click to request permission)';
+            } else if (isOn) {
                 screenBtn.classList.add('active');
                 screenText.textContent = 'ON';
                 screenBtn.title = 'Screen Share: ON (click to stop)';
@@ -4166,9 +4317,34 @@ IMPORTANT:
             }
         }
 
-        function toggleMicrophone() {
-            if (!mediaStream) {
-                addInterviewChatMessage('system', '🎤 Microphone not available - please start interview session first');
+        async function toggleMicrophone() {
+            // Check actual permission first
+            const hasPermission = await checkMicrophonePermission();
+            
+            if (!hasPermission) {
+                // Permission denied, try to request it
+                addInterviewChatMessage('system', '🎤 Requesting microphone permission...');
+                try {
+                    await startTranscription();
+                } catch (error) {
+                    console.error('Error starting transcription:', error);
+                    actualMicrophonePermission = false;
+                    updateMicrophoneStatus(false);
+                    addInterviewChatMessage('system', '🎤 Microphone permission denied. Please enable in System Preferences and restart the app.');
+                    return;
+                }
+                return;
+            }
+            
+            if (!mediaStream || !isMicrophoneOn) {
+                // Try to start transcription which will request microphone permission
+                addInterviewChatMessage('system', '🎤 Starting microphone...');
+                try {
+                    await startTranscription();
+                } catch (error) {
+                    console.error('Error starting transcription:', error);
+                    addInterviewChatMessage('system', '🎤 Failed to access microphone. Please check permissions in system preferences.');
+                }
                 return;
             }
 
@@ -4194,47 +4370,157 @@ IMPORTANT:
 
         async function toggleScreenShare() {
             try {
+                console.log('[UI DEBUG] Screen share button clicked, current state:', isScreenShareOn);
                 const analyzeBtn = document.getElementById('analyzeScreenBtnInterview');
                 
-                if (!isScreenShareOn) {
-                    // Start screen sharing
-                    const screenResult = await window.electronAPI.startScreenCapture();
-                    if (screenResult && screenResult.success) {
-                        updateScreenShareStatus(true);
-                        addInterviewChatMessage('system', '📺 Screen sharing started');
-                        
-                        // Re-enable the analyze screen button
-                        if (analyzeBtn) {
-                            analyzeBtn.disabled = false;
-                            analyzeBtn.style.opacity = '1';
-                            analyzeBtn.title = 'Analyze Screen';
-                        }
-                    } else {
-                        addInterviewChatMessage('system', '📺 Failed to start screen sharing');
-                    }
-                } else {
-                    // Disable screen sharing functionality
+                // Check actual permission first
+                const hasPermission = await checkScreenSharePermission();
+                
+                if (!hasPermission) {
+                    // Permission denied
+                    actualScreenSharePermission = false;
                     updateScreenShareStatus(false);
-                    addInterviewChatMessage('system', '📺 Screen sharing disabled (analyze screen will not work)');
+                    addInterviewChatMessage('system', '📺 Screen recording permission denied. Please enable in System Preferences > Privacy & Security > Screen Recording and restart the app');
                     
                     // Disable the analyze screen button
                     if (analyzeBtn) {
                         analyzeBtn.disabled = true;
                         analyzeBtn.style.opacity = '0.5';
-                        analyzeBtn.title = 'Screen sharing is disabled';
+                        analyzeBtn.title = 'Screen recording permission denied';
+                    }
+                    return;
+                }
+                
+                if (!isScreenShareOn) {
+                    // Permission granted, enable screen sharing
+                    console.log('[UI DEBUG] Screen recording enabled via toggle');
+                    actualScreenSharePermission = true;
+                    updateScreenShareStatus(true);
+                    addInterviewChatMessage('system', '📺 Screen recording enabled');
+                    
+                    // Get screen sources for analysis
+                    try {
+                        const sourcesResult = await window.electronAPI.getDesktopSources();
+                        if (sourcesResult && sourcesResult.success && sourcesResult.sources.length > 0) {
+                            window.screenSourceId = sourcesResult.sources[0].id;
+                            console.log('[UI DEBUG] Stored screen source ID via toggle:', window.screenSourceId);
+                        }
+                    } catch (sourceError) {
+                        console.log('[UI DEBUG] Could not get screen sources, but permission is granted');
+                    }
+                    
+                    // Re-enable the analyze screen button
+                    if (analyzeBtn) {
+                        analyzeBtn.disabled = false;
+                        analyzeBtn.style.opacity = '1';
+                        analyzeBtn.title = 'Analyze Screen';
+                    }
+                } else {
+                    console.log('[UI DEBUG] Disabling screen recording');
+                    // Disable screen sharing functionality
+                    updateScreenShareStatus(false);
+                    addInterviewChatMessage('system', '📺 Screen recording disabled');
+                    
+                    // Disable the analyze screen button
+                    if (analyzeBtn) {
+                        analyzeBtn.disabled = true;
+                        analyzeBtn.style.opacity = '0.5';
+                        analyzeBtn.title = 'Screen recording is disabled';
                     }
                 }
             } catch (error) {
-                console.error('Screen share toggle error:', error);
-                addInterviewChatMessage('system', '📺 Screen sharing error: ' + error.message);
+                console.error('[UI ERROR] Screen share toggle error:', error);
+                actualScreenSharePermission = false;
+                updateScreenShareStatus(false);
+                addInterviewChatMessage('system', '📺 Screen recording error: ' + error.message);
             }
         }
 
+        // Function to take a real screenshot using getUserMedia
+        async function takeScreenshotWithSource(sourceId) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    console.log(`[SCREENSHOT DEBUG] Starting getUserMedia with source: ${sourceId}`);
+                    
+                    // Use getUserMedia to capture the screen with the specific source
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            mandatory: {
+                                chromeMediaSource: 'desktop',
+                                chromeMediaSourceId: sourceId,
+                                minWidth: 1280,
+                                maxWidth: 1920,
+                                minHeight: 720,
+                                maxHeight: 1080
+                            }
+                        }
+                    });
+
+                    console.log('[SCREENSHOT DEBUG] Got media stream, creating video element...');
+                    
+                    // Create video element to capture frame
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.autoplay = true;
+                    video.muted = true;
+
+                    video.onloadedmetadata = () => {
+                        console.log(`[SCREENSHOT DEBUG] Video loaded: ${video.videoWidth}x${video.videoHeight}`);
+                        
+                        // Wait a bit for the video to start
+                        setTimeout(() => {
+                            try {
+                                // Create canvas to capture frame
+                                const canvas = document.createElement('canvas');
+                                canvas.width = video.videoWidth;
+                                canvas.height = video.videoHeight;
+                                
+                                const ctx = canvas.getContext('2d');
+                                ctx.drawImage(video, 0, 0);
+                                
+                                // Convert to base64
+                                const imageData = canvas.toDataURL('image/png');
+                                
+                                console.log(`[SCREENSHOT DEBUG] Screenshot captured: ${imageData.length} characters`);
+                                console.log(`[SCREENSHOT DEBUG] Canvas size: ${canvas.width}x${canvas.height}`);
+                                
+                                // Stop the stream
+                                stream.getTracks().forEach(track => track.stop());
+                                
+                                resolve(imageData);
+                            } catch (error) {
+                                stream.getTracks().forEach(track => track.stop());
+                                reject(error);
+                            }
+                        }, 500); // Wait 500ms for video to fully load
+                    };
+
+                    video.onerror = (error) => {
+                        console.error('[SCREENSHOT ERROR] Video error:', error);
+                        stream.getTracks().forEach(track => track.stop());
+                        reject(new Error('Failed to load video stream'));
+                    };
+
+                } catch (error) {
+                    console.error('[SCREENSHOT ERROR] getUserMedia failed:', error);
+                    reject(error);
+                }
+            });
+        }
+
         // Initialize status indicators when interview starts
-        function initializeStatusIndicators() {
-            // Start with default OFF states - they'll be updated when actually connected
-            updateMicrophoneStatus(false);
-            updateScreenShareStatus(false);
+        async function initializeStatusIndicators() {
+            // Check actual permissions and set button states accordingly
+            const micPermission = await checkMicrophonePermission();
+            const screenPermission = await checkScreenSharePermission();
+            
+            console.log('[PERMISSION CHECK] Microphone:', micPermission ? 'GRANTED' : 'DENIED');
+            console.log('[PERMISSION CHECK] Screen Share:', screenPermission ? 'GRANTED' : 'DENIED');
+            
+            // Update button states based on actual permissions
+            updateMicrophoneStatus(false); // OFF initially, but will show DENIED if no permission
+            updateScreenShareStatus(false); // OFF initially, but will show DENIED if no permission
         }
 
 
