@@ -69,13 +69,54 @@ class ChikuDesktopApp {
   private readonly WEBAPP_BASE_URL = process.env.WEBAPP_BASE_URL || 'https://www.chiku-ai.in';
 
   constructor() {
-    this.store = new Store();
+    this.store = new Store({
+      name: 'chiku-ai-desktop',
+      clearInvalidConfig: true,
+      // Use explicit config location for better consistency across environments
+      cwd: app.getPath('userData'),
+      fileExtension: 'json',
+      serialize: JSON.stringify,
+      deserialize: JSON.parse,
+      defaults: {
+        user: null,
+        cachedRemainingMinutes: 0,
+        appVersion: app.getVersion() // Track app version for debugging
+      }
+    });
+    
+    // Debug store location and contents for packaged app issues
+    if (app.isPackaged) {
+      console.log(`[PACKAGED DEBUG] Store path: ${this.store.path}`);
+      console.log(`[PACKAGED DEBUG] Store contents:`, this.store.store);
+    }
+    
     this.setupApp();
   }
   
   private getAuthToken(): string | null {
     const user = this.store.get('user') as any;
-    return user?.token || null;
+    const token = user?.token || null;
+    
+    // Validate token is not expired for packaged app
+    if (token && app.isPackaged) {
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < now) {
+          console.log('[PACKAGED DEBUG] Token expired, clearing user data');
+          this.store.delete('user');
+          this.store.delete('cachedRemainingMinutes');
+          return null;
+        }
+      } catch (error) {
+        console.log('[PACKAGED DEBUG] Invalid token, clearing user data');
+        this.store.delete('user');
+        this.store.delete('cachedRemainingMinutes');
+        return null;
+      }
+    }
+    
+    return token;
   }
   
   private extractSubscriptionTier(token: string | null): string {
@@ -268,9 +309,18 @@ class ChikuDesktopApp {
 
 
   private createMainWindow() {
+    // Check auth status to determine proper window size
+    const user = this.store.get('user') as any;
+    const isAuthenticated = !!user;
+    
+    // Debug auth status for packaged app
+    if (app.isPackaged) {
+      console.log(`[PACKAGED DEBUG] Creating window - isAuthenticated: ${isAuthenticated}, user:`, user);
+    }
+    
     this.mainWindow = new BrowserWindow({
       width: 450,
-      height: 420,
+      height: isAuthenticated ? 240 : 420, // Dashboard size if authenticated, login size if not
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
@@ -304,6 +354,22 @@ class ChikuDesktopApp {
     if (isDev) {
       this.mainWindow.webContents.openDevTools();
     }
+
+    // Add ready event listener for packaged app debugging
+    this.mainWindow.webContents.once('dom-ready', () => {
+      const user = this.store.get('user');
+      const isAuthenticated = !!user;
+      
+      if (app.isPackaged) {
+        console.log(`[PACKAGED DEBUG] Main window ready - auth: ${isAuthenticated}`);
+      }
+      
+      // Send initial auth status
+      this.mainWindow.webContents.send('auth-status-changed', { 
+        isAuthenticated: isAuthenticated,
+        user: user 
+      });
+    });
 
     this.mainWindow.on('closed', () => {
       this.mainWindow = null;
@@ -610,6 +676,10 @@ class ChikuDesktopApp {
         // Update session in database and user's remaining minutes
         await this.updateSessionMinutes(this.currentSessionId, elapsed);
       } catch (error) {
+        // Debug auth errors in packaged app
+        if (app.isPackaged && error.message && error.message.includes('401')) {
+          console.log('[PACKAGED DEBUG] Auth error during session end, but preserving user session');
+        }
       }
       
       // Clear timer and session data
@@ -618,7 +688,7 @@ class ChikuDesktopApp {
       this.sessionStartTime = null;
     }
     
-    // Return to dashboard mode
+    // Return to dashboard mode (preserve auth state)
     this.transformToDashboardMode();
   }
   
@@ -626,6 +696,10 @@ class ChikuDesktopApp {
     try {
       // Only update if we actually have minutes used (webapp doesn't accept 0)
       if (minutesUsed > 0) {
+        if (app.isPackaged) {
+          console.log(`[PACKAGED DEBUG] Updating session: ${sessionId}, minutes: ${minutesUsed}`);
+        }
+        
         await this.makeAuthenticatedRequest('/api/desktop-sessions/update', {
           method: 'POST',
           body: JSON.stringify({
@@ -636,13 +710,30 @@ class ChikuDesktopApp {
           })
         });
         
+        if (app.isPackaged) {
+          console.log('[PACKAGED DEBUG] Session update successful');
+        }
       } else {
+        if (app.isPackaged) {
+          console.log('[PACKAGED DEBUG] No minutes used, skipping session update');
+        }
       }
     } catch (error: any) {
       // Handle specific error cases
+      if (app.isPackaged) {
+        console.log(`[PACKAGED DEBUG] Session update error: ${error.message}`);
+      }
+      
       if (error.message && error.message.includes('403')) {
         // For free users who exhaust their minutes, we still consider the session successfully ended
         return;
+      }
+      
+      // Don't clear user auth for other errors
+      if (error.message && (error.message.includes('401') || error.message.includes('Invalid token'))) {
+        if (app.isPackaged) {
+          console.log('[PACKAGED DEBUG] Auth token issue but preserving user session');
+        }
       }
     }
   }
@@ -667,11 +758,15 @@ class ChikuDesktopApp {
       app.dock.hide();
     }
 
-    // Recreate as always-on-top dashboard window
+    // Check if user is still authenticated before setting window size
+    const user = this.store.get('user');
+    const isAuthenticated = !!user;
+    
+    // Recreate window with appropriate size based on auth status
     this.mainWindow.destroy();
     this.mainWindow = new BrowserWindow({
       width: 450,
-      height: 240,
+      height: isAuthenticated ? 240 : 420, // Dashboard size if authenticated, login size if not
       x: this.originalBounds?.x || 100,
       y: this.originalBounds?.y || 100,
       webPreferences: {
@@ -705,8 +800,18 @@ class ChikuDesktopApp {
 
     // Wait for window to be ready then send mode change
     this.mainWindow.webContents.once('dom-ready', () => {
+      // Check auth status and send appropriate mode
+      const user = this.store.get('user');
+      const isAuthenticated = !!user;
+      
       this.mainWindow.webContents.send('mode-changed', { 
         mode: 'dashboard' 
+      });
+      
+      // Send auth status to ensure UI is correct
+      this.mainWindow.webContents.send('auth-status-changed', { 
+        isAuthenticated: isAuthenticated,
+        user: user 
       });
     });
 
@@ -1313,8 +1418,14 @@ class ChikuDesktopApp {
   }
 
   private handleAuthCallback(url: string) {
+    if (app.isPackaged) {
+      console.log(`[PACKAGED DEBUG] Auth callback received: ${url}`);
+    }
     
     if (url.includes('auth/success')) {
+      if (app.isPackaged) {
+        console.log('[PACKAGED DEBUG] Processing successful auth');
+      }
       
       // Parse user data from URL
       let user: any = {
@@ -1355,8 +1466,14 @@ class ChikuDesktopApp {
       // Store new user data
       this.store.set('user', user);
 
+      if (app.isPackaged) {
+        console.log('[PACKAGED DEBUG] User data stored successfully');
+      }
+
       // Show the main window and bring it to front
       if (this.mainWindow) {
+        // Resize window to dashboard size since user is now authenticated
+        this.mainWindow.setSize(450, 240, true);
         this.mainWindow.show();
         if (this.mainWindow.isMinimized()) this.mainWindow.restore();
         this.mainWindow.focus();
