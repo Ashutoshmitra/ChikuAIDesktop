@@ -48,11 +48,6 @@ module.exports = {
       filename: 'index.html',
       inject: 'body'
     }),
-    new HtmlWebpackPlugin({
-      template: './src/interview-window.html',
-      filename: 'interview-window.html',
-      inject: false
-    }),
     new webpack.DefinePlugin({
       'global': 'globalThis',
       'process.env': JSON.stringify(process.env)
