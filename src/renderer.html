@@ -4244,7 +4244,7 @@ IMPORTANT:
                 return;
             }
             
-            if (!mediaStream || !isMicrophoneOn) {
+            if (!mediaStream || mediaStream.getAudioTracks().length === 0) {
                 // Try to start transcription which will request microphone permission
                 try {
                     await startTranscription();
