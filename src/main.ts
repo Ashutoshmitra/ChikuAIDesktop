@@ -238,9 +238,18 @@ class ChikuDesktopApp {
       title: 'Chiku AI Desktop',
       transparent: false,
       frame: false,
-      skipTaskbar: false,
-      alwaysOnTop: false
+      skipTaskbar: true,
+      alwaysOnTop: true
     });
+
+    // Set maximum always on top level like interview mode
+    this.mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    this.mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+    // Hide from dock completely like interview mode
+    if (process.platform === 'darwin') {
+      app.dock.hide();
+    }
 
     // Enable content protection to prevent screen capture
     this.mainWindow.setContentProtection(true);
@@ -607,12 +616,12 @@ class ChikuDesktopApp {
     // Hide current frameless window
     this.mainWindow.hide();
 
-    // Show in dock/taskbar again
+    // Keep hidden from dock/taskbar like interview mode
     if (process.platform === 'darwin') {
-      app.dock.show();
+      app.dock.hide();
     }
 
-    // Recreate as normal dashboard window
+    // Recreate as always-on-top dashboard window
     this.mainWindow.destroy();
     this.mainWindow = new BrowserWindow({
       width: 450,
@@ -629,9 +638,13 @@ class ChikuDesktopApp {
       title: 'Chiku AI Desktop',
       transparent: false,
       frame: false,
-      skipTaskbar: false,
-      alwaysOnTop: false
+      skipTaskbar: true,
+      alwaysOnTop: true
     });
+
+    // Set maximum always on top level like interview mode
+    this.mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    this.mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
     // Enable content protection
     this.mainWindow.setContentProtection(true);
@@ -653,7 +666,7 @@ class ChikuDesktopApp {
 
     this.isInterviewMode = false;
 
-    // Focus the window
+    // Focus the window while staying hidden from dock
     this.mainWindow.focus();
     if (process.platform === 'darwin') {
       app.focus({ steal: true });
@@ -1203,12 +1216,15 @@ class ChikuDesktopApp {
     this.collapsedWindow.close();
     this.collapsedWindow = null;
 
-    // Show and restore main window
+    // Show and restore main window with always-on-top behavior
     if (this.mainWindow) {
       this.mainWindow.show();
       if (this.originalBounds) {
         this.mainWindow.setBounds(this.originalBounds);
       }
+      // Ensure it remains always on top
+      this.mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      this.mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
       this.mainWindow.focus();
       if (process.platform === 'darwin') {
         app.focus({ steal: true });
