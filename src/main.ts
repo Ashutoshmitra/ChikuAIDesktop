@@ -1223,7 +1223,6 @@ class ChikuDesktopApp {
     });
 
     this.isCollapsed = true;
-    console.log('Window collapsed to logo');
   }
 
   private expandFromLogo() {
@@ -1249,7 +1248,6 @@ class ChikuDesktopApp {
     }
 
     this.isCollapsed = false;
-    console.log('Window expanded from logo');
   }
 
   private handleAuthCallback(url: string) {
