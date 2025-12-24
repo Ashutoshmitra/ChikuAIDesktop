@@ -947,6 +947,47 @@
             background: #f9fafb;
             border-color: #9ca3af;
         }
+        
+        .header-back-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-app-region: no-drag;
+        }
+        
+        .header-back-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .header-close-btn {
+            background: none;
+            border: none;
+            color: #dc2626;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-app-region: no-drag;
+        }
+        
+        .header-close-btn:hover {
+            background: #fef2f2;
+            color: #991b1b;
+        }
 
         .activate-btn {
             flex: 2;
@@ -1885,6 +1926,9 @@
                         </svg>
                     </button>
                     <button class="menu-btn" onclick="toggleMenu()">⋯</button>
+                    <button class="header-close-btn" onclick="closeApp()" title="Close app">
+                        ✕
+                    </button>
                     <div id="menuDropdown" class="menu-dropdown">
                         <div class="menu-item" id="userInfo">
                             <div style="width: 24px; height: 24px; background: #c8894a; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 12px;">U</div>
@@ -1952,6 +1996,11 @@
     <!-- Resume Selection Screen -->
     <div id="resumeSelectionScreen">
         <div class="resume-screen-header">
+            <div class="resume-header-left">
+                <button class="header-back-btn" onclick="closeResumeSelection()" title="Go back">
+                    ←
+                </button>
+            </div>
             <h1 class="resume-screen-title">Select Resume for Session</h1>
             <div class="resume-header-controls">
                 <button class="resume-collapse-btn" onclick="collapseToLogo()" title="Minimize to logo">
@@ -1960,7 +2009,9 @@
                         <path d="M9 22V12h6v10M2 10.6L12 2l10 8.6"/>
                     </svg>
                 </button>
-                <button class="close-btn" onclick="closeResumeSelection()">✕</button>
+                <button class="header-close-btn" onclick="closeApp()" title="Close app">
+                    ✕
+                </button>
             </div>
         </div>
         
@@ -2022,6 +2073,11 @@
     <!-- Session Activation Screen -->
     <div id="sessionActivationScreen">
         <div class="activation-screen-header">
+            <div class="activation-header-left">
+                <button class="header-back-btn" onclick="backToResumeSelection()" title="Go back">
+                    ←
+                </button>
+            </div>
             <h1 class="activation-screen-title">Activate Interview Session</h1>
             <div class="activation-header-controls">
                 <button class="activation-collapse-btn" onclick="collapseToLogo()" title="Minimize to logo">
@@ -2030,7 +2086,9 @@
                         <path d="M9 22V12h6v10M2 10.6L12 2l10 8.6"/>
                     </svg>
                 </button>
-                <button class="close-btn" onclick="backToResumeSelection()">✕</button>
+                <button class="header-close-btn" onclick="closeApp()" title="Close app">
+                    ✕
+                </button>
             </div>
         </div>
         
@@ -2053,7 +2111,6 @@
             </div>
             
             <div class="activation-buttons">
-                <button class="back-btn" onclick="backToResumeSelection()">Back</button>
                 <button class="activate-btn" id="activateButton" onclick="activateSession()">Activate (Free)</button>
             </div>
         </div>
@@ -2335,6 +2392,14 @@
                 }
             } catch (error) {
                 console.error('Error collapsing window:', error);
+            }
+        }
+        
+        function closeApp() {
+            if (window.electronAPI && window.electronAPI.closeApp) {
+                window.electronAPI.closeApp();
+            } else {
+                window.close();
             }
         }
 
