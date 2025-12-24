@@ -1039,6 +1039,57 @@
             border-color: #c8894a;
         }
 
+        /* Status indicator buttons */
+        .status-indicator-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 50px;
+            justify-content: center;
+        }
+
+        .status-indicator-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Active (ON) state - subtle green */
+        .status-indicator-btn.active {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: rgba(34, 197, 94, 1);
+        }
+
+        .status-indicator-btn.active:hover {
+            background: rgba(34, 197, 94, 0.2);
+        }
+
+        /* Inactive (OFF) state - subtle red */
+        .status-indicator-btn.inactive {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: rgba(239, 68, 68, 1);
+        }
+
+        .status-indicator-btn.inactive:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .status-indicator-btn svg {
+            width: 12px;
+            height: 12px;
+            stroke-width: 2;
+        }
+
         .stop-session-btn {
             background: rgba(220, 38, 38, 0.8);
             border-color: rgba(220, 38, 38, 0.8);
@@ -2037,6 +2088,26 @@
             <div class="interview-header-center">Interview Assistant</div>
             
             <div class="interview-header-right">
+                <!-- Microphone Status Button -->
+                <button class="status-indicator-btn" id="micStatusBtn" onclick="toggleMicrophone()" title="Toggle microphone">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                    </svg>
+                    <span id="micStatusText">OFF</span>
+                </button>
+                
+                <!-- Screen Share Status Button -->
+                <button class="status-indicator-btn" id="screenStatusBtn" onclick="toggleScreenShare()" title="Toggle screen share">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="4" width="20" height="12" rx="2"></rect>
+                        <line x1="12" y1="16" x2="12" y2="20"></line>
+                        <line x1="8" y1="20" x2="16" y2="20"></line>
+                    </svg>
+                    <span id="screenStatusText">OFF</span>
+                </button>
+                
                 <button class="interview-collapse-btn" onclick="collapseToLogo()" title="Minimize to logo">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M20 9v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9"/>
@@ -3007,6 +3078,9 @@
             // Initialize Auto AI toggle
             initializeAutoAIToggle();
             
+            // Initialize status indicators
+            initializeStatusIndicators();
+            
             // Request permissions and start transcription
             await requestPermissionsAndStartTranscription();
         }
@@ -3045,7 +3119,11 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
 
                 // Get screen capture capability
                 const screenResult = await window.electronAPI.startScreenCapture();
-                if (!screenResult.success) {
+                if (screenResult.success) {
+                    updateScreenShareStatus(true);
+                    addInterviewChatMessage('system', 'Screen capture ready.');
+                } else {
+                    updateScreenShareStatus(false);
                     addInterviewChatMessage('system', 'Screen capture not available.');
                 }
 
@@ -3079,6 +3157,12 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                         noiseSuppression: true,
                     },
                 });
+
+                // Update microphone status when successfully connected
+                if (mediaStream && mediaStream.getAudioTracks().length > 0) {
+                    updateMicrophoneStatus(true);
+                    addInterviewChatMessage('system', 'Microphone connected and ready.');
+                }
 
                 // Create WebSocket connection to AssemblyAI
                 assemblyAISocket = new WebSocket(
@@ -3181,6 +3265,8 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
             } catch (error) {
                 console.error('Error starting transcription:', error);
                 updateConnectionStatus('error', `Failed to start: ${error.message}`);
+                // Update microphone status on error
+                updateMicrophoneStatus(false);
             }
         }
 
@@ -3273,6 +3359,8 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
             if (mediaStream) {
                 mediaStream.getTracks().forEach(track => track.stop());
                 mediaStream = null;
+                // Update microphone status when stream is stopped
+                updateMicrophoneStatus(false);
             }
 
             isTranscribing = false;
@@ -3705,6 +3793,12 @@ IMPORTANT:
             btn.classList.add('active');
             
             try {
+                // Check if screen sharing is enabled
+                if (!isScreenShareOn) {
+                    addInterviewChatMessage('system', 'Screen sharing is disabled. Please enable it first to analyze screen.');
+                    return;
+                }
+                
                 addInterviewChatMessage('system', 'Capturing and analyzing screen content...');
                 
                 // Capture current screen
@@ -3937,6 +4031,11 @@ IMPORTANT:
         // Panel resize functionality
         let isPanelExpanded = false;
 
+        // Status tracking
+        let isMicrophoneOn = false; // Start as false until actually connected
+        let isScreenShareOn = false; // Start as false until actually connected
+        let microphoneTracks = []; // Store actual audio tracks
+
         function togglePanelSizes() {
             const leftPanel = document.getElementById('interviewLeftPanel');
             const rightPanel = document.getElementById('interviewRightPanel');
@@ -3961,6 +4060,116 @@ IMPORTANT:
                 resizeBtn.innerHTML = '⇄';
                 resizeBtn.title = 'Toggle panel sizes';
             }
+        }
+
+        // Status indicator functions
+        function updateMicrophoneStatus(isOn) {
+            isMicrophoneOn = isOn;
+            const micBtn = document.getElementById('micStatusBtn');
+            const micText = document.getElementById('micStatusText');
+            
+            if (!micBtn || !micText) return;
+            
+            micBtn.classList.remove('active', 'inactive');
+            if (isOn) {
+                micBtn.classList.add('active');
+                micText.textContent = 'ON';
+                micBtn.title = 'Microphone: ON (click to mute)';
+            } else {
+                micBtn.classList.add('inactive');
+                micText.textContent = 'OFF';
+                micBtn.title = 'Microphone: OFF (click to unmute)';
+            }
+        }
+
+        function updateScreenShareStatus(isOn) {
+            isScreenShareOn = isOn;
+            const screenBtn = document.getElementById('screenStatusBtn');
+            const screenText = document.getElementById('screenStatusText');
+            
+            if (!screenBtn || !screenText) return;
+            
+            screenBtn.classList.remove('active', 'inactive');
+            if (isOn) {
+                screenBtn.classList.add('active');
+                screenText.textContent = 'ON';
+                screenBtn.title = 'Screen Share: ON (click to stop)';
+            } else {
+                screenBtn.classList.add('inactive');
+                screenText.textContent = 'OFF';
+                screenBtn.title = 'Screen Share: OFF (click to start)';
+            }
+        }
+
+        function toggleMicrophone() {
+            if (!mediaStream) {
+                addInterviewChatMessage('system', '🎤 Microphone not available - please start interview session first');
+                return;
+            }
+
+            const audioTracks = mediaStream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                addInterviewChatMessage('system', '🎤 No microphone tracks found');
+                return;
+            }
+
+            const newState = !isMicrophoneOn;
+            
+            // Actually enable/disable the microphone tracks
+            audioTracks.forEach(track => {
+                track.enabled = newState;
+            });
+            
+            updateMicrophoneStatus(newState);
+            
+            // Add system message to chat
+            const statusMessage = newState ? 'Microphone unmuted' : 'Microphone muted';
+            addInterviewChatMessage('system', `🎤 ${statusMessage}`);
+        }
+
+        async function toggleScreenShare() {
+            try {
+                const analyzeBtn = document.getElementById('analyzeScreenBtnInterview');
+                
+                if (!isScreenShareOn) {
+                    // Start screen sharing
+                    const screenResult = await window.electronAPI.startScreenCapture();
+                    if (screenResult && screenResult.success) {
+                        updateScreenShareStatus(true);
+                        addInterviewChatMessage('system', '📺 Screen sharing started');
+                        
+                        // Re-enable the analyze screen button
+                        if (analyzeBtn) {
+                            analyzeBtn.disabled = false;
+                            analyzeBtn.style.opacity = '1';
+                            analyzeBtn.title = 'Analyze Screen';
+                        }
+                    } else {
+                        addInterviewChatMessage('system', '📺 Failed to start screen sharing');
+                    }
+                } else {
+                    // Disable screen sharing functionality
+                    updateScreenShareStatus(false);
+                    addInterviewChatMessage('system', '📺 Screen sharing disabled (analyze screen will not work)');
+                    
+                    // Disable the analyze screen button
+                    if (analyzeBtn) {
+                        analyzeBtn.disabled = true;
+                        analyzeBtn.style.opacity = '0.5';
+                        analyzeBtn.title = 'Screen sharing is disabled';
+                    }
+                }
+            } catch (error) {
+                console.error('Screen share toggle error:', error);
+                addInterviewChatMessage('system', '📺 Screen sharing error: ' + error.message);
+            }
+        }
+
+        // Initialize status indicators when interview starts
+        function initializeStatusIndicators() {
+            // Start with default OFF states - they'll be updated when actually connected
+            updateMicrophoneStatus(false);
+            updateScreenShareStatus(false);
         }
 
 
