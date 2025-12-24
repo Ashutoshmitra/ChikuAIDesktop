@@ -1148,6 +1148,9 @@ class ChikuDesktopApp {
     this.collapsedWindow.setAlwaysOnTop(true, 'screen-saver');
     this.collapsedWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
+    // Enable content protection to prevent screen capture like main window
+    this.collapsedWindow.setContentProtection(true);
+
     // Create HTML content for the collapsed window with logo
     const logoImagePath = path.join(__dirname, '..', 'public', 'hero_image.png').replace(/\\/g, '/');
     const logoHTML = `
