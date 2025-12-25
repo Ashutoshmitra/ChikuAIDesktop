@@ -31,6 +31,36 @@
             align-items: center;
             justify-content: center;
             -webkit-app-region: drag;
+            position: relative;
+        }
+        
+        .login-header-controls {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+        
+        .login-collapse-btn {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-collapse-btn:hover {
+            background: #f3f4f6;
+            color: #374151;
         }
 
         #loginScreen {
@@ -1890,6 +1920,16 @@
 <body>
     <!-- Login Screen -->
     <div class="login-container">
+        <div class="login-header-controls">
+            <button class="login-collapse-btn" onclick="collapseToLogo()" title="Minimize to logo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </button>
+            <button class="header-close-btn" onclick="closeApp()" title="Close app">
+                ✕
+            </button>
+        </div>
         <div class="container">
             <div id="loginScreen">
                 <div class="logo"></div>
@@ -2149,7 +2189,7 @@
                 </div>
             </div>
             
-            <div class="interview-header-center">Interview Assistant</div>
+            <div class="interview-header-center">Chiku AI</div>
             
             <div class="interview-header-right">
                 <!-- Microphone Status Button -->
