@@ -54,3 +54,6 @@ coverage/
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Personal command files with tokens
+userfulcommands.md

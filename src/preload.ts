@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   login: () => ipcRenderer.invoke('login'),
   logout: () => ipcRenderer.invoke('logout'),
   getAuthStatus: () => ipcRenderer.invoke('get-auth-status'),
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
   fetchSessions: () => ipcRenderer.invoke('fetch-sessions'),
   fetchUserData: () => ipcRenderer.invoke('fetch-user-data'),
@@ -65,5 +68,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Listen for AI response chunks (streaming)
   onAIResponseChunk: (callback: (chunk: string) => void) => {
     ipcRenderer.on('ai-response-chunk', (event, chunk) => callback(chunk));
+  },
+  
+  // Auto-updater event listeners (temporary debug)
+  onUpdateAvailable: (callback: (info: any) => void) => {
+    ipcRenderer.on('update-available', (event, info) => callback(info));
+  },
+  
+  onUpdateDownloaded: (callback: (info: any) => void) => {
+    ipcRenderer.on('update-downloaded', (event, info) => callback(info));
+  },
+  
+  onDownloadProgress: (callback: (progress: any) => void) => {
+    ipcRenderer.on('download-progress', (event, progress) => callback(progress));
   }
 });

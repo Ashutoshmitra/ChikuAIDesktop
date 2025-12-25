@@ -871,6 +871,12 @@ class ChikuDesktopApp {
       };
     });
 
+    // Get app version from package.json
+    ipcMain.handle('get-app-version', () => {
+      const packageJson = require('../package.json');
+      return packageJson.version;
+    });
+
     // Open external URL
     ipcMain.handle('open-external', async (_, url) => {
       await shell.openExternal(url);
@@ -1495,7 +1501,19 @@ class ChikuDesktopApp {
   }
   
   private setupAutoUpdater() {
-    // Configure auto-updater
+    // Configure auto-updater for private GitHub repo
+    if (process.env.GH_TOKEN) {
+      autoUpdater.setFeedURL({
+        provider: 'github',
+        owner: 'Ashutoshmitra',
+        repo: 'ChikuAIDesktop',
+        token: process.env.GH_TOKEN
+      });
+    }
+    
+    // Auto install when app quits
+    autoUpdater.autoInstallOnAppQuit = true;
+    
     autoUpdater.checkForUpdatesAndNotify();
     
     autoUpdater.on('checking-for-update', () => {
