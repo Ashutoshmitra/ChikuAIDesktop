@@ -1501,20 +1501,24 @@ class ChikuDesktopApp {
   }
   
   private setupAutoUpdater() {
-    // Configure auto-updater for private GitHub repo
-    if (process.env.GH_TOKEN) {
-      autoUpdater.setFeedURL({
-        provider: 'github',
-        owner: 'Ashutoshmitra',
-        repo: 'ChikuAIDesktop',
-        token: process.env.GH_TOKEN
-      });
-    }
+    // Always configure for public repos - no token needed
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'Ashutoshmitra',
+      repo: 'ChikuAIDesktop'
+    });
     
-    // Auto install when app quits
+    // Enable automatic downloads and installation
+    autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
     
+    // Start checking for updates automatically
     autoUpdater.checkForUpdatesAndNotify();
+    
+    // Set up periodic checks every 5 minutes
+    setInterval(() => {
+      autoUpdater.checkForUpdatesAndNotify();
+    }, 5 * 60 * 1000);
     
     autoUpdater.on('checking-for-update', () => {
     });
@@ -1541,6 +1545,8 @@ class ChikuDesktopApp {
       if (this.mainWindow) {
         this.mainWindow.webContents.send('update-downloaded', info);
       }
+      // Automatically install after download
+      autoUpdater.quitAndInstall();
     });
   }
 }

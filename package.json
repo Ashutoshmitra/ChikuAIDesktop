@@ -1,6 +1,6 @@
 {
   "name": "chiku-ai-desktop",
-  "version": "1.0.12",
+  "version": "1.0.14",
   "description": "Chiku AI Desktop App",
   "main": "dist/main.js",
   "scripts": {
