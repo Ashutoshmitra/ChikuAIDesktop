@@ -1212,7 +1212,8 @@
             border-radius: 6px;
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            min-width: 80px;
+            width: 90px;
+            font-family: 'Courier New', monospace;
         }
 
         .interview-transcript-bar {
@@ -1326,30 +1327,33 @@
         }
         
         .ai-response-close-btn {
-            background: rgba(239, 68, 68, 0.9);
-            border: 1px solid rgba(239, 68, 68, 1);
-            color: white;
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            background: #000000;
+            border: 1px solid #333333;
+            color: #ffffff;
             border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 18px;
-            font-weight: bold;
+            width: 24px;
+            height: 24px;
+            font-size: 14px;
+            font-weight: normal;
             cursor: pointer;
             transition: all 0.2s ease;
             -webkit-app-region: no-drag;
-            min-width: 28px;
-            height: 28px;
             text-align: center;
-            line-height: 1;
+            line-height: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
+            z-index: 1000;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            margin-left: 8px;
         }
         
         .ai-response-close-btn:hover {
-            background: rgba(239, 68, 68, 1);
-            transform: scale(1.05);
+            background: #333333;
+            color: white;
+            transform: translateY(-1px);
             box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
         }
         
@@ -1392,6 +1396,51 @@
         .ai-response-content::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.6);
         }
+        
+        /* AI Pagination Controls */
+        .ai-pagination-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .ai-nav-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .ai-nav-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .ai-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .ai-page-indicator {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            font-weight: 500;
+            min-width: 50px;
+            text-align: center;
+        }
+        
         
         .ai-loading {
             display: flex;
@@ -2450,10 +2499,15 @@
 
         <!-- Dynamic AI Response Area -->
         <div class="interview-ai-response-area" id="interviewAIResponseArea" style="display: none;">
-            <div class="ai-response-header">
-                <span class="ai-response-title">AI Response</span>
-                <button class="ai-response-close-btn" onclick="closeAIResponse()" title="Close AI response">×</button>
+            <div class="ai-response-close-btn" onclick="closeAIResponse()" title="Close AI response">↑</div>
+            
+            <!-- Pagination Controls -->
+            <div class="ai-pagination-controls" id="aiPaginationControls" style="display: none;">
+                <button class="ai-nav-btn" id="aiPrevBtn" onclick="navigateAIResponse(-1)" title="Previous response">‹</button>
+                <span class="ai-page-indicator" id="aiPageIndicator">1 / 1</span>
+                <button class="ai-nav-btn" id="aiNextBtn" onclick="navigateAIResponse(1)" title="Next response">›</button>
             </div>
+            
             <div class="ai-response-content" id="aiResponseContent">
                 <div class="ai-loading">
                     <div class="ai-loading-spinner"></div>
@@ -2523,15 +2577,25 @@
                     const aiResponseArea = document.getElementById('interviewAIResponseArea');
                     if (aiResponseArea && aiResponseArea.style.display !== 'none' && 
                         (currentStreamingMessageId.includes('ai-expand') || currentStreamingMessageId.includes('ai-screen'))) {
-                        // Find if we have a question header stored (works for both screen analysis and AI answer)
-                        const contentEl = document.getElementById('aiResponseContent');
-                        const existingContent = contentEl ? contentEl.innerHTML : '';
-                        const questionMatch = existingContent.match(/<div[^>]*>.*?(Question detected|Question extracted):.*?<\/div>/);
-                        const questionHeader = questionMatch ? questionMatch[0] : '';
+                        // For auto AI, preserve the question header
+                        let questionHeader = '';
+                        if (currentStreamingMessageId.includes('ai-expand')) {
+                            // Auto AI - look for existing question header
+                            const contentEl = document.getElementById('aiResponseContent');
+                            const existingContent = contentEl ? contentEl.innerHTML : '';
+                            const questionMatch = existingContent.match(/<div[^>]*>.*?Question detected:.*?<\/div>/);
+                            questionHeader = questionMatch ? questionMatch[0] : '';
+                        } else if (currentStreamingMessageId.includes('ai-screen')) {
+                            // Screen analysis - look for different pattern
+                            const contentEl = document.getElementById('aiResponseContent');
+                            const existingContent = contentEl ? contentEl.innerHTML : '';
+                            const questionMatch = existingContent.match(/<div[^>]*>.*?Question detected:.*?<\/div>/);
+                            questionHeader = questionMatch ? questionMatch[0] : '';
+                        }
                         
-                        // Update with question header (if any) + rendered markdown content
+                        // Update with question header (if any) + rendered markdown content with star emoji
                         const renderedContent = renderMarkdown(updatedContent);
-                        updateAIResponseContent(questionHeader + '<div class="ai-markdown-content">' + renderedContent + '</div>');
+                        updateAIResponseContentLegacy(questionHeader + '<div class="ai-markdown-content"><span style="font-size: 18px;">⭐</span> ' + renderedContent + '</div>');
                     } else {
                         // Use the normal chat update for other messages
                         updateInterviewChatMessage(currentStreamingMessageId, updatedContent);
@@ -3674,15 +3738,11 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                                     finalizeCurrentPartial(message.transcript);
                                     
                                     // Check for Auto AI answer if enabled
-                                    window.electronAPI.debugLog('🤖 Transcript finalized: ' + message.transcript + ', autoAI: ' + isAutoAnswerEnabled + ', length: ' + message.transcript.trim().length);
                                     
                                     if (isAutoAnswerEnabled && message.transcript.trim()) {
-                                        window.electronAPI.debugLog('🤖 Calling analyzeTranscriptForQuestions with: ' + message.transcript);
                                         analyzeTranscriptForQuestions(message.transcript);
                                     } else if (!isAutoAnswerEnabled) {
-                                        window.electronAPI.debugLog('🤖 Auto AI disabled, skipping transcript analysis');
                                     } else {
-                                        window.electronAPI.debugLog('🤖 Empty transcript, skipping analysis');
                                     }
                                     
                                     // Save complete transcript periodically (every 5 turns to avoid excessive saves)
@@ -3853,6 +3913,11 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
 
         function addInterviewChatMessage(type, content, messageId = null) {
             const messagesContainer = document.getElementById('interviewChatMessages');
+            
+            if (!messagesContainer) {
+                return null;
+            }
+            
             const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
             const messageDiv = document.createElement('div');
@@ -3875,8 +3940,12 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 `;
             }
             
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            try {
+                messagesContainer.appendChild(messageDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            } catch (error) {
+                return null;
+            }
             
             return messageDiv;
         }
@@ -4022,8 +4091,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
 
         // Auto AI Answer Functions
         async function analyzeTranscriptForQuestions(transcript) {
-            window.electronAPI.debugLog('🤖 Analyzing transcript for questions: ' + transcript);
-            window.electronAPI.debugLog('🤖 Auto AI enabled: ' + isAutoAnswerEnabled);
             
             const questionKeywords = [
                 'what', 'how', 'why', 'when', 'where', 'who', 'which', 'would you', 
@@ -4036,7 +4103,6 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
             
             // Skip very short transcripts (likely incomplete)
             if (normalizedTranscript.length < 10) {
-                window.electronAPI.debugLog('🤖 Transcript too short, skipping: ' + normalizedTranscript);
                 return;
             }
             
@@ -4046,50 +4112,50 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                 normalizedTranscript.includes(keyword.toLowerCase())
             );
             
-            window.electronAPI.debugLog('🤖 Question analysis: endsWith? ' + endsWithQuestionMark + ', keywords: ' + containsQuestionKeywords + ', transcript: ' + normalizedTranscript.substring(0, 50) + '...');
             
             if (endsWithQuestionMark || containsQuestionKeywords) {
                 const questionHash = btoa(transcript).substring(0, 10);
                 
-                window.electronAPI.debugLog('🤖 Question detected! Hash: ' + questionHash);
-                window.electronAPI.debugLog('🤖 Already answered questions: ' + Array.from(answeredQuestions).join(', '));
                 
                 if (!answeredQuestions.has(questionHash)) {
                     answeredQuestions.add(questionHash);
-                    window.electronAPI.debugLog('🤖 Auto-answering question in 1.5 seconds...');
                     
                     // Add slight delay to feel natural
                     setTimeout(() => {
-                        window.electronAPI.debugLog('🤖 Triggering auto answer for: ' + transcript);
                         autoAnswerQuestion(transcript);
                     }, 1500);
                 } else {
-                    window.electronAPI.debugLog('🤖 Question already answered, skipping');
                 }
             } else {
-                window.electronAPI.debugLog('🤖 No question detected in transcript');
             }
         }
 
-        async function autoAnswerQuestion(questionText) {
-            window.electronAPI.debugLog('🤖 Starting auto-answer for question: ' + questionText);
+        async function autoAnswerQuestion(transcriptText) {
             
             try {
-                // Create a unique message ID for this streaming response
-                const messageId = `ai-message-${Date.now()}`;
+                // Extract the actual question from the transcript
+                const extractedQuestion = extractBestQuestion(transcriptText);
+                const questionToShow = extractedQuestion || transcriptText.substring(0, 100) + '...';
+                
+                
+                // Show AI response area (same as manual AI Answer button)
+                showAIResponseArea();
+                
+                // Create a unique message ID for streaming
+                const messageId = `ai-expand-${Date.now()}`;
                 currentStreamingMessageId = messageId;
                 
-                window.electronAPI.debugLog('🤖 Created message ID: ' + messageId);
+                // Debug logging disabled
                 
-                // Initialize streaming content for this specific message
-                const initialContent = `**Q:** ${questionText}\n\n**A:** `;
-                streamingMessages.set(messageId, initialContent);
+                // Show initial loading with extracted question
+                const initialContent = `<div style="color: #f59e0b; font-weight: 600; margin-bottom: 12px;"><span style="font-size: 18px;">☁️</span> Question detected: ${questionToShow}</div><div class="ai-loading"><div class="ai-loading-spinner"></div>Generating AI answer...</div>`;
+                updateAIResponseContentLegacy(initialContent);
                 
-                // Add initial message with question and empty answer
-                addInterviewChatMessage('ai', initialContent, messageId);
+                // Initialize streaming content (empty to avoid duplication)
+                streamingMessages.set(messageId, '');
                 
-                // Build context message similar to webapp
-                let baseContextMessage = `You are responding as the interviewee in a job interview${currentInterviewSessionData?.company && currentInterviewSessionData?.position ? ` for the position of ${currentInterviewSessionData.position} at ${currentInterviewSessionData.company}` : ''}. Provide a direct, professional response that the candidate can read word-for-word to answer this question: "${questionText}". 
+                // Build context message similar to manual AI Answer
+                let baseContextMessage = `You are responding as the interviewee in a job interview${currentInterviewSessionData?.company && currentInterviewSessionData?.position ? ` for the position of ${currentInterviewSessionData.position} at ${currentInterviewSessionData.company}` : ''}. Provide a direct, professional response that the candidate can read word-for-word to answer this question: "${extractedQuestion || transcriptText}". 
 
 IMPORTANT: 
 - Give ONLY the response the interviewee should say, not advice about what to say
@@ -4102,33 +4168,33 @@ IMPORTANT:
                 // Add resume context to the message
                 const contextMessage = buildAIContextMessage(baseContextMessage);
                 
-                window.electronAPI.debugLog('🤖 Calling AI API with context message...');
+                // Debug logging disabled
                 
-                // Use streaming API
+                // Use streaming API (same as manual AI Answer)
                 const response = await window.electronAPI.generateAIResponseStream({
                     transcript: '',
                     message: contextMessage,
                     isCoding: false
                 });
                 
-                window.electronAPI.debugLog('🤖 AI API response: ' + JSON.stringify(response));
+                // Debug logging disabled
                 
-                // Cleanup streaming state for this message
+                // Cleanup streaming state
                 streamingMessages.delete(messageId);
                 currentStreamingMessageId = null;
                 
             } catch (error) {
-                window.electronAPI.debugLog('🤖 Error in auto-answer: ' + error.message);
+                // Debug logging disabled
                 
+                // Show error in AI response area
+                const errorContent = `<div style="color: #f59e0b; font-weight: 600; margin-bottom: 12px;"><span style="font-size: 18px;">☁️</span> Question detected: ${questionToShow}</div><div style="color: #ef4444;">❌ Auto AI failed: ${error.message}</div><div style="margin-top: 8px; opacity: 0.7;">Please use the manual AI Answer button to try again.</div>`;
+                updateAIResponseContentLegacy(errorContent);
+                
+                // Cleanup
                 if (currentStreamingMessageId) {
-                    const errorMessage = `**Q:** ${questionText}\n\n**A:** Sorry, I couldn't generate an answer right now. Please respond manually. Error: ${error.message}`;
-                    updateInterviewChatMessage(currentStreamingMessageId, errorMessage);
                     streamingMessages.delete(currentStreamingMessageId);
                 }
                 currentStreamingMessageId = null;
-                
-                // Show error message to user
-                addInterviewChatMessage('system', `❌ Auto AI failed: ${error.message}`);
             }
         }
 
@@ -4195,7 +4261,7 @@ IMPORTANT:
             const aiResponseArea = document.getElementById('interviewAIResponseArea');
             if (aiResponseArea) {
                 aiResponseArea.style.display = 'block';
-                // Resize main window to accommodate AI response area
+                // Resize main window to accommodate AI response area  
                 resizeInterviewWindow(520); // 120 base + 400 AI response
             }
         }
@@ -4204,8 +4270,98 @@ IMPORTANT:
             const aiResponseArea = document.getElementById('interviewAIResponseArea');
             if (aiResponseArea) {
                 aiResponseArea.style.display = 'none';
+                // Hide pagination controls
+                const paginationControls = document.getElementById('aiPaginationControls');
+                if (paginationControls) paginationControls.style.display = 'none';
                 // Resize back to original compact size
                 resizeInterviewWindow(120);
+            }
+        }
+
+        // AI Response Pagination System
+        let aiResponses = []; // Store up to 3 responses
+        let currentResponseIndex = 0;
+
+        function addAIResponse(content, question = '') {
+            console.log('[PAGINATION DEBUG] Adding new AI response. Current count:', aiResponses.length);
+            
+            const response = {
+                content: content,
+                question: question,
+                timestamp: Date.now(),
+                id: 'response-' + Date.now()
+            };
+            
+            // Add to beginning of array
+            aiResponses.unshift(response);
+            console.log('[PAGINATION DEBUG] Added response. New count:', aiResponses.length);
+            
+            // Keep only latest 3 responses
+            if (aiResponses.length > 3) {
+                // Remove the oldest response
+                const removedResponse = aiResponses.pop();
+                console.log('[PAGINATION DEBUG] Removed oldest response. Final count:', aiResponses.length);
+            }
+            
+            // Reset to first response
+            currentResponseIndex = 0;
+            console.log('[PAGINATION DEBUG] Reset to index 0');
+            
+            // Update UI
+            updateAIResponseContent(content);
+            updatePaginationUI();
+        }
+
+        function navigateAIResponse(direction) {
+            console.log('[PAGINATION DEBUG] Navigate called with direction:', direction, 'Current index:', currentResponseIndex, 'Total responses:', aiResponses.length);
+            
+            if (aiResponses.length <= 1) {
+                console.log('[PAGINATION DEBUG] Not enough responses to navigate');
+                return;
+            }
+            
+            const newIndex = currentResponseIndex + direction;
+            console.log('[PAGINATION DEBUG] New index would be:', newIndex);
+            
+            if (newIndex >= 0 && newIndex < aiResponses.length) {
+                currentResponseIndex = newIndex;
+                console.log('[PAGINATION DEBUG] Updated current index to:', currentResponseIndex);
+                updatePaginationUI();
+                updateAIResponseContent(aiResponses[currentResponseIndex].content);
+            } else {
+                console.log('[PAGINATION DEBUG] New index out of bounds');
+            }
+        }
+
+        function updatePaginationUI() {
+            const paginationControls = document.getElementById('aiPaginationControls');
+            const prevBtn = document.getElementById('aiPrevBtn');
+            const nextBtn = document.getElementById('aiNextBtn');
+            const pageIndicator = document.getElementById('aiPageIndicator');
+            
+            console.log('[PAGINATION DEBUG] UpdateUI called. Current index:', currentResponseIndex, 'Total responses:', aiResponses.length);
+            
+            // Only show pagination if we have more than 1 response
+            if (paginationControls) {
+                if (aiResponses.length > 1) {
+                    console.log('[PAGINATION DEBUG] Showing pagination controls');
+                    paginationControls.style.display = 'flex';
+                    if (prevBtn) {
+                        prevBtn.disabled = currentResponseIndex === 0;
+                        console.log('[PAGINATION DEBUG] Prev button disabled:', prevBtn.disabled);
+                    }
+                    if (nextBtn) {
+                        nextBtn.disabled = currentResponseIndex === aiResponses.length - 1;
+                        console.log('[PAGINATION DEBUG] Next button disabled:', nextBtn.disabled);
+                    }
+                    if (pageIndicator) {
+                        pageIndicator.textContent = `${currentResponseIndex + 1} / ${aiResponses.length}`;
+                        console.log('[PAGINATION DEBUG] Page indicator:', pageIndicator.textContent);
+                    }
+                } else {
+                    console.log('[PAGINATION DEBUG] Hiding pagination controls (only', aiResponses.length, 'responses)');
+                    paginationControls.style.display = 'none';
+                }
             }
         }
 
@@ -4215,6 +4371,27 @@ IMPORTANT:
                 aiContent.innerHTML = content;
             }
         }
+        
+        // Legacy function that now uses the pagination system
+        function updateAIResponseContentLegacy(content) {
+            // For loading states, update directly without adding to history
+            if (content.includes('ai-loading') || content.includes('Error') || content.includes('disabled')) {
+                updateAIResponseContent(content);
+            } else {
+                // For actual responses, add to pagination system
+                addAIResponse(content);
+            }
+        }
+
+        
+        // Initialize pagination system
+        document.addEventListener('DOMContentLoaded', function() {
+            // Hide pagination controls initially
+            const paginationControls = document.getElementById('aiPaginationControls');
+            if (paginationControls) {
+                paginationControls.style.display = 'none';
+            }
+        });
 
         async function resizeInterviewWindow(newHeight) {
             // Send resize request to main process
@@ -4251,6 +4428,49 @@ IMPORTANT:
             return sentences.length > 0 ? sentences[sentences.length - 1] : null;
         }
 
+        // Improved question extraction using better logic
+        function extractBestQuestion(transcript) {
+            if (!transcript || !transcript.trim()) return null;
+            
+            // Split by sentence endings and question marks
+            const segments = transcript.split(/[.!?]/).map(s => s.trim()).filter(s => s.length > 5);
+            
+            // Look for explicit questions first (ending with ?)
+            const explicitQuestions = [];
+            const parts = transcript.split('?');
+            for (let i = 0; i < parts.length - 1; i++) {
+                const question = parts[i].trim();
+                const lastSentence = question.split(/[.!]/).pop().trim();
+                if (lastSentence.length > 5) {
+                    explicitQuestions.push(lastSentence + '?');
+                }
+            }
+            
+            if (explicitQuestions.length > 0) {
+                return explicitQuestions[explicitQuestions.length - 1];
+            }
+            
+            // Enhanced question keywords with common interview patterns
+            const questionKeywords = [
+                'what', 'how', 'why', 'when', 'where', 'who', 'which', 'whose',
+                'would you', 'can you', 'could you', 'will you', 'do you',
+                'tell me', 'describe', 'explain', 'share', 'talk about',
+                'what are', 'what is', 'what do', 'how do', 'why did', 'why do',
+                'can you tell', 'can you walk', 'walk me through', 'thoughts on'
+            ];
+            
+            // Look for question-like sentences
+            for (let i = segments.length - 1; i >= 0; i--) {
+                const segment = segments[i].toLowerCase();
+                if (questionKeywords.some(keyword => segment.includes(keyword))) {
+                    return segments[i];
+                }
+            }
+            
+            // Fall back to the last meaningful segment
+            return segments.length > 0 ? segments[segments.length - 1] : null;
+        }
+
         async function handleAIAnswerInterview() {
             const btn = document.getElementById('aiAnswerBtnInterview');
             btn.classList.add('active');
@@ -4263,19 +4483,21 @@ IMPORTANT:
                 const fullTranscript = currentTranscripts ? currentTranscripts.map(t => t.text).join(' ') : '';
                 
                 if (!fullTranscript.trim()) {
-                    updateAIResponseContent('<div class="ai-loading"><div class="ai-loading-spinner"></div>No transcript available yet. Please speak first.</div>');
+                    updateAIResponseContentLegacy('<div class="ai-loading"><div class="ai-loading-spinner"></div>No transcript available yet. Please speak first.</div>');
                     btn.classList.remove('active');
                     return;
                 }
 
-                // Extract the most recent question
-                const recentQuestion = extractRecentQuestion(fullTranscript);
+                // Extract the most recent question using improved logic
+                const recentQuestion = extractBestQuestion(fullTranscript);
                 
-                // Show loading state with question if found
+                // Always show loading state - if question found, show it; otherwise show generic message
                 if (recentQuestion) {
-                    updateAIResponseContent(`<div style="margin-bottom: 15px; padding: 10px; background: rgba(200, 137, 74, 0.2); border-radius: 6px;"><strong>Question extracted:</strong> ${recentQuestion}</div><div class="ai-loading"><div class="ai-loading-spinner"></div>Generating professional answer...</div>`);
+                    updateAIResponseContentLegacy(`<div style="color: #f59e0b; font-weight: 600; margin-bottom: 12px;"><span style="font-size: 18px;">☁️</span> Question detected: ${recentQuestion}</div><div class="ai-loading"><div class="ai-loading-spinner"></div>Generating professional answer...</div>`);
                 } else {
-                    updateAIResponseContent('<div class="ai-loading"><div class="ai-loading-spinner"></div>Analyzing transcript and generating response...</div>');
+                    // Try to extract any question-like content from transcript
+                    const questionLikeContent = fullTranscript.split('.').pop().trim() || fullTranscript.substring(Math.max(0, fullTranscript.length - 100));
+                    updateAIResponseContentLegacy(`<div style="color: #f59e0b; font-weight: 600; margin-bottom: 12px;"><span style="font-size: 18px;">☁️</span> Analyzing: ${questionLikeContent}${questionLikeContent.endsWith('?') ? '' : '...'}</div><div class="ai-loading"><div class="ai-loading-spinner"></div>Generating professional response...</div>`);
                 }
                 
                 // Generate AI response using streaming transcript
@@ -4293,7 +4515,7 @@ IMPORTANT:
                 });
                 
                 if (!response.success) {
-                    updateAIResponseContent(`<div style="color: #ff6b6b;">Error generating AI answer: ${response.error}</div>`);
+                    updateAIResponseContentLegacy(`<div style="color: #ff6b6b;">Error generating AI answer: ${response.error}</div>`);
                 } else {
                     // The streaming content will be handled by the existing onAIResponseChunk handler
                     // and updateInterviewChatMessage function. We need to redirect it to our AI response area.
@@ -4304,7 +4526,7 @@ IMPORTANT:
                 currentStreamingMessageId = null;
                 
             } catch (error) {
-                updateAIResponseContent(`<div style="color: #ff6b6b;">Error generating AI answer. Please try again.</div>`);
+                updateAIResponseContentLegacy(`<div style="color: #ff6b6b;">Error generating AI answer. Please try again.</div>`);
                 if (currentStreamingMessageId) {
                     streamingMessages.delete(currentStreamingMessageId);
                     currentStreamingMessageId = null;
@@ -4325,7 +4547,7 @@ IMPORTANT:
                 
                 // Check if screen sharing is enabled
                 if (!isScreenShareOn) {
-                    updateAIResponseContent('<div style="color: #ffa500;">Screen sharing is disabled. Please enable it first to analyze screen.</div>');
+                    updateAIResponseContentLegacy('<div style="color: #ffa500;">Screen sharing is disabled. Please enable it first to analyze screen.</div>');
                     btn.classList.remove('active');
                     return;
                 }
@@ -4335,7 +4557,7 @@ IMPORTANT:
                 const sourceResult = await window.electronAPI.captureScreen();
                 
                 if (!sourceResult.success || !sourceResult.sourceId) {
-                    updateAIResponseContent(`<div style="color: #ff6b6b;">Screen capture failed: ${sourceResult.error || 'Unknown error'}</div>`);
+                    updateAIResponseContentLegacy(`<div style="color: #ff6b6b;">Screen capture failed: ${sourceResult.error || 'Unknown error'}</div>`);
                     btn.classList.remove('active');
                     return;
                 }
@@ -4351,13 +4573,13 @@ IMPORTANT:
                         errorMessage += '<div style="color: #87ceeb; margin-top: 5px;">💡 In development mode, try: System Preferences > Privacy & Security > Screen Recording > Add Terminal.app</div>';
                         errorMessage += '<div style="color: #87ceeb; margin-top: 5px;">✅ Or test in production build: npm run dist</div>';
                     }
-                    updateAIResponseContent(errorMessage);
+                    updateAIResponseContentLegacy(errorMessage);
                     btn.classList.remove('active');
                     return;
                 }
 
                 // Show loading state
-                updateAIResponseContent('<div class="ai-loading"><div class="ai-loading-spinner"></div>Analyzing screen content...</div>');
+                updateAIResponseContentLegacy('<div class="ai-loading"><div class="ai-loading-spinner"></div>Analyzing screen content...</div>');
                 
                 // Analyze screen content
                 const analysisResult = await window.electronAPI.analyzeScreenContent(imageData);
@@ -4366,7 +4588,7 @@ IMPORTANT:
                 if (analysisResult.success) {
                     if (analysisResult.question && analysisResult.question !== "No questions found on screen.") {
                         // Show question detected in AI response area
-                        updateAIResponseContent(`<div style="margin-bottom: 15px; padding: 10px; background: rgba(200, 137, 74, 0.2); border-radius: 6px;"><strong>Question detected:</strong> ${analysisResult.question}</div><div class="ai-loading"><div class="ai-loading-spinner"></div>Generating professional answer...</div>`);
+                        updateAIResponseContentLegacy(`<div style="color: #f59e0b; font-weight: 600; margin-bottom: 12px;"><span style="font-size: 18px;">☁️</span> Question detected: ${analysisResult.question}</div><div class="ai-loading"><div class="ai-loading-spinner"></div>Generating professional answer...</div>`);
                         
                         // Use the existing streaming system - use ai-screen prefix so the handler knows to update AI response area
                         currentStreamingMessageId = `ai-screen-${Date.now()}`;
@@ -4381,21 +4603,21 @@ IMPORTANT:
                         });
                         
                         if (!response.success) {
-                            updateAIResponseContent(`<div style="color: #ff6b6b;">Error generating AI answer: ${response.error}</div>`);
+                            updateAIResponseContentLegacy(`<div style="color: #ff6b6b;">Error generating AI answer: ${response.error}</div>`);
                         }
                         
                         // Cleanup
                         streamingMessages.delete(currentStreamingMessageId);
                         currentStreamingMessageId = null;
                     } else {
-                        updateAIResponseContent('<div style="color: #ffa500;">Screen analysis complete. No interview questions detected on screen.</div>');
+                        updateAIResponseContentLegacy('<div style="color: #ffa500;">Screen analysis complete. No interview questions detected on screen.</div>');
                     }
                 } else {
-                    updateAIResponseContent(`<div style="color: #ff6b6b;">Screen analysis failed: ${analysisResult.error}</div>`);
+                    updateAIResponseContentLegacy(`<div style="color: #ff6b6b;">Screen analysis failed: ${analysisResult.error}</div>`);
                 }
                 
             } catch (error) {
-                updateAIResponseContent(`<div style="color: #ff6b6b;">Error analyzing screen: ${error.message}</div>`);
+                updateAIResponseContentLegacy(`<div style="color: #ff6b6b;">Error analyzing screen: ${error.message}</div>`);
                 if (currentStreamingMessageId) {
                     streamingMessages.delete(currentStreamingMessageId);
                     currentStreamingMessageId = null;
@@ -4520,33 +4742,31 @@ IMPORTANT:
 
         // Auto AI Toggle Functions
         function toggleAutoAI(enabled) {
-            window.electronAPI.debugLog('🤖 Toggling Auto AI to: ' + enabled);
+            // Debug logging disabled
             isAutoAnswerEnabled = enabled;
             
             // Clear answered questions when toggling to allow re-answering
             if (enabled) {
                 answeredQuestions.clear();
-                addInterviewChatMessage('system', '🤖 Auto AI Answer is now enabled - questions will be automatically answered.');
-                window.electronAPI.debugLog('🤖 Auto AI enabled, cleared answered questions cache');
+                // Debug logging disabled
             } else {
-                addInterviewChatMessage('system', '🤖 Auto AI Answer is now disabled.');
-                window.electronAPI.debugLog('🤖 Auto AI disabled');
+                // Debug logging disabled
             }
         }
 
         // Initialize Auto AI toggle state when entering interview mode
         function initializeAutoAIToggle() {
-            window.electronAPI.debugLog('🤖 Initializing Auto AI toggle, current state: ' + isAutoAnswerEnabled);
+            // Debug logging disabled
             
             const toggle = document.getElementById('autoAIToggleInterview');
             if (toggle) {
                 // Sync with the global isAutoAnswerEnabled that was set from session data
                 toggle.checked = isAutoAnswerEnabled;
-                window.electronAPI.debugLog('🤖 Set toggle checkbox to: ' + toggle.checked);
+                // Debug logging disabled
                 
                 // Update UI to reflect current state without triggering chat message
             } else {
-                window.electronAPI.debugLog('🤖 Auto AI toggle element not found!');
+                // Debug logging disabled
             }
         }
 

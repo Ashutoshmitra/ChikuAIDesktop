@@ -1375,8 +1375,8 @@ class ChikuDesktopApp {
     });
 
     // Debug relay from renderer
-    ipcMain.handle('debug-log', (event, message) => {
-      console.log('[RENDERER]', message);
+    ipcMain.handle('debug-log', () => {
+      // Console logging disabled
     });
 
     // Check cooldown status for free users - always fetch fresh data from server
