@@ -4281,9 +4281,20 @@ IMPORTANT:
         // AI Response Pagination System
         let aiResponses = []; // Store up to 3 responses
         let currentResponseIndex = 0;
+        let isUpdatingCurrentResponse = false; // Flag to prevent duplicate adds during streaming
 
         function addAIResponse(content, question = '') {
-            console.log('[PAGINATION DEBUG] Adding new AI response. Current count:', aiResponses.length);
+            // If we're currently updating the most recent response, just update its content
+            if (isUpdatingCurrentResponse && aiResponses.length > 0) {
+                aiResponses[0].content = content;
+                updateAIResponseContent(content);
+                return;
+            }
+            
+            // Check for exact duplicate
+            if (aiResponses.length > 0 && aiResponses[0].content === content) {
+                return;
+            }
             
             const response = {
                 content: content,
@@ -4294,18 +4305,22 @@ IMPORTANT:
             
             // Add to beginning of array
             aiResponses.unshift(response);
-            console.log('[PAGINATION DEBUG] Added response. New count:', aiResponses.length);
             
             // Keep only latest 3 responses
             if (aiResponses.length > 3) {
-                // Remove the oldest response
                 const removedResponse = aiResponses.pop();
-                console.log('[PAGINATION DEBUG] Removed oldest response. Final count:', aiResponses.length);
             }
             
             // Reset to first response
             currentResponseIndex = 0;
-            console.log('[PAGINATION DEBUG] Reset to index 0');
+            
+            // Mark that we're updating this response (for streaming)
+            isUpdatingCurrentResponse = true;
+            
+            // Clear the flag after a delay (when streaming is likely done)
+            setTimeout(() => {
+                isUpdatingCurrentResponse = false;
+            }, 2000);
             
             // Update UI
             updateAIResponseContent(content);
@@ -4313,23 +4328,16 @@ IMPORTANT:
         }
 
         function navigateAIResponse(direction) {
-            console.log('[PAGINATION DEBUG] Navigate called with direction:', direction, 'Current index:', currentResponseIndex, 'Total responses:', aiResponses.length);
-            
             if (aiResponses.length <= 1) {
-                console.log('[PAGINATION DEBUG] Not enough responses to navigate');
                 return;
             }
             
             const newIndex = currentResponseIndex + direction;
-            console.log('[PAGINATION DEBUG] New index would be:', newIndex);
             
             if (newIndex >= 0 && newIndex < aiResponses.length) {
                 currentResponseIndex = newIndex;
-                console.log('[PAGINATION DEBUG] Updated current index to:', currentResponseIndex);
                 updatePaginationUI();
                 updateAIResponseContent(aiResponses[currentResponseIndex].content);
-            } else {
-                console.log('[PAGINATION DEBUG] New index out of bounds');
             }
         }
 
@@ -4339,27 +4347,20 @@ IMPORTANT:
             const nextBtn = document.getElementById('aiNextBtn');
             const pageIndicator = document.getElementById('aiPageIndicator');
             
-            console.log('[PAGINATION DEBUG] UpdateUI called. Current index:', currentResponseIndex, 'Total responses:', aiResponses.length);
-            
             // Only show pagination if we have more than 1 response
             if (paginationControls) {
                 if (aiResponses.length > 1) {
-                    console.log('[PAGINATION DEBUG] Showing pagination controls');
                     paginationControls.style.display = 'flex';
                     if (prevBtn) {
                         prevBtn.disabled = currentResponseIndex === 0;
-                        console.log('[PAGINATION DEBUG] Prev button disabled:', prevBtn.disabled);
                     }
                     if (nextBtn) {
                         nextBtn.disabled = currentResponseIndex === aiResponses.length - 1;
-                        console.log('[PAGINATION DEBUG] Next button disabled:', nextBtn.disabled);
                     }
                     if (pageIndicator) {
                         pageIndicator.textContent = `${currentResponseIndex + 1} / ${aiResponses.length}`;
-                        console.log('[PAGINATION DEBUG] Page indicator:', pageIndicator.textContent);
                     }
                 } else {
-                    console.log('[PAGINATION DEBUG] Hiding pagination controls (only', aiResponses.length, 'responses)');
                     paginationControls.style.display = 'none';
                 }
             }

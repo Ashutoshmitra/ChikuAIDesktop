@@ -1375,8 +1375,8 @@ class ChikuDesktopApp {
     });
 
     // Debug relay from renderer
-    ipcMain.handle('debug-log', () => {
-      // Console logging disabled
+    ipcMain.handle('debug-log', (event, message) => {
+      console.log('[RENDERER]', message);
     });
 
     // Check cooldown status for free users - always fetch fresh data from server
@@ -1512,14 +1512,8 @@ class ChikuDesktopApp {
     ipcMain.handle('resize-interview-window', async (event, width, height) => {
       try {
         if (this.mainWindow && this.isInterviewMode) {
-          const currentBounds = this.mainWindow.getBounds();
+          // Just resize without changing position
           this.mainWindow.setSize(width, height, true);
-          // Keep the window positioned from the right edge
-          const { screen } = require('electron');
-          const primaryDisplay = screen.getPrimaryDisplay();
-          const screenWidth = primaryDisplay.workAreaSize.width;
-          const margin = 20;
-          this.mainWindow.setPosition(screenWidth - width - margin, currentBounds.y);
           return { success: true };
         }
         return { success: false, error: 'Window not available or not in interview mode' };
