@@ -40,6 +40,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveTranscript: (sessionId: string, transcript: string) => ipcRenderer.invoke('save-transcript', sessionId, transcript),
   checkCooldownStatus: () => ipcRenderer.invoke('check-cooldown-status'),
   
+  // AI Response Window Management
+  openAIResponseWindow: () => ipcRenderer.invoke('open-ai-response-window'),
+  closeAIResponseWindow: () => ipcRenderer.invoke('close-ai-response-window'),
+  sendAIResponseContent: (content: string) => ipcRenderer.invoke('send-ai-response-content', content),
+  resizeInterviewWindow: (width: number, height: number) => ipcRenderer.invoke('resize-interview-window', width, height),
+  
   // Listen for auth status changes
   onAuthStatusChanged: (callback: (data: any) => void) => {
     ipcRenderer.on('auth-status-changed', (event, data) => callback(data));
@@ -68,6 +74,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Listen for AI response chunks (streaming)
   onAIResponseChunk: (callback: (chunk: string) => void) => {
     ipcRenderer.on('ai-response-chunk', (event, chunk) => callback(chunk));
+  },
+  
+  // Listen for AI response content (for AI window)
+  onAIResponseContent: (callback: (content: string) => void) => {
+    ipcRenderer.on('ai-response-content', (event, content) => callback(content));
   },
   
   // Auto-updater event listeners (temporary debug)

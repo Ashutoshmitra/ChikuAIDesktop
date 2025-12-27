@@ -48,6 +48,7 @@ interface ScreenAnalysisResponse {
 class ChikuDesktopApp {
   private mainWindow: BrowserWindow | null = null;
   private collapsedWindow: BrowserWindow | null = null;
+  private aiResponseWindow: BrowserWindow | null = null;
   private store: Store;
   private isInterviewMode: boolean = false;
   private isCollapsed: boolean = false;
@@ -447,9 +448,9 @@ class ChikuDesktopApp {
     // Recreate as frameless transparent overlay
     this.mainWindow.destroy();
     this.mainWindow = new BrowserWindow({
-      width: 1000,
-      height: 650,
-      x: screenWidth - 1000 - margin,
+      width: 1200,
+      height: 120,
+      x: screenWidth - 1200 - margin,
       y: margin,
       frame: false,
       transparent: true,
@@ -666,6 +667,181 @@ class ChikuDesktopApp {
     this.timerSessionId = null;
     this.currentRemainingSeconds = 0;
     this.lastServerSyncTime = 0;
+  }
+
+  private createAIResponseWindow() {
+    if (this.aiResponseWindow) {
+      // Focus existing window
+      this.aiResponseWindow.focus();
+      return;
+    }
+
+    const { screen } = require('electron');
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const screenWidth = primaryDisplay.workAreaSize.width;
+    const screenHeight = primaryDisplay.workAreaSize.height;
+    const margin = 20;
+
+    this.aiResponseWindow = new BrowserWindow({
+      width: 500,
+      height: 600,
+      x: screenWidth - 500 - margin - 1200 - margin, // Position to the left of main interview window
+      y: margin,
+      frame: false,
+      transparent: true,
+      alwaysOnTop: true,
+      resizable: true,
+      skipTaskbar: true,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js'),
+        webSecurity: true
+      }
+    });
+
+    // Set maximum always on top level
+    this.aiResponseWindow.setAlwaysOnTop(true, 'screen-saver');
+    this.aiResponseWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+    // Enable content protection
+    this.aiResponseWindow.setContentProtection(true);
+
+    // Create AI response HTML content
+    const aiResponseHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            border-radius: 12px;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+          }
+          .ai-window-header {
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: move;
+            -webkit-app-region: drag;
+          }
+          .ai-window-title {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+          }
+          .ai-close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            -webkit-app-region: no-drag;
+          }
+          .ai-close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+          }
+          .ai-content {
+            padding: 20px;
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+          }
+          .ai-content::-webkit-scrollbar {
+            width: 6px;
+          }
+          .ai-content::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+          }
+          .ai-content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+          }
+          .ai-loading {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: rgba(255, 255, 255, 0.7);
+          }
+          .ai-loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+          }
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="ai-window-header">
+          <div class="ai-window-title">AI Response</div>
+          <button class="ai-close-btn" onclick="closeAIWindow()">✕</button>
+        </div>
+        <div class="ai-content" id="aiContent">
+          <div class="ai-loading">
+            <div class="ai-loading-spinner"></div>
+            Processing your request...
+          </div>
+        </div>
+        <script>
+          function closeAIWindow() {
+            if (window.electronAPI && window.electronAPI.closeAIResponseWindow) {
+              window.electronAPI.closeAIResponseWindow();
+            }
+          }
+          
+          if (window.electronAPI) {
+            window.electronAPI.onAIResponseChunk((content) => {
+              const aiContent = document.getElementById('aiContent');
+              if (aiContent) {
+                aiContent.innerHTML = content;
+              }
+            });
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    // Write temp HTML file for AI response window
+    const fs = require('fs');
+    const tempAIPath = path.join(__dirname, 'ai-response.html');
+    fs.writeFileSync(tempAIPath, aiResponseHTML);
+    this.aiResponseWindow.loadFile(tempAIPath);
+
+    // Handle close event
+    this.aiResponseWindow.on('closed', () => {
+      this.aiResponseWindow = null;
+    });
+
+    return this.aiResponseWindow;
+  }
+
+  private closeAIResponseWindow() {
+    if (this.aiResponseWindow) {
+      this.aiResponseWindow.close();
+      this.aiResponseWindow = null;
+    }
   }
   
   private async endCurrentSession() {
@@ -1200,6 +1376,7 @@ class ChikuDesktopApp {
 
     // Debug relay from renderer
     ipcMain.handle('debug-log', (event, message) => {
+      console.log('[RENDERER]', message);
     });
 
     // Check cooldown status for free users - always fetch fresh data from server
@@ -1295,6 +1472,57 @@ class ChikuDesktopApp {
         });
 
         return { success: true };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    // AI Response Window Management
+    ipcMain.handle('open-ai-response-window', async () => {
+      try {
+        this.createAIResponseWindow();
+        return { success: true };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('close-ai-response-window', async () => {
+      try {
+        this.closeAIResponseWindow();
+        return { success: true };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    ipcMain.handle('send-ai-response-content', async (event, content) => {
+      try {
+        if (this.aiResponseWindow && !this.aiResponseWindow.isDestroyed()) {
+          this.aiResponseWindow.webContents.send('ai-response-content', content);
+          return { success: true };
+        }
+        return { success: false, error: 'AI response window not available' };
+      } catch (error: any) {
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Resize interview window
+    ipcMain.handle('resize-interview-window', async (event, width, height) => {
+      try {
+        if (this.mainWindow && this.isInterviewMode) {
+          const currentBounds = this.mainWindow.getBounds();
+          this.mainWindow.setSize(width, height, true);
+          // Keep the window positioned from the right edge
+          const { screen } = require('electron');
+          const primaryDisplay = screen.getPrimaryDisplay();
+          const screenWidth = primaryDisplay.workAreaSize.width;
+          const margin = 20;
+          this.mainWindow.setPosition(screenWidth - width - margin, currentBounds.y);
+          return { success: true };
+        }
+        return { success: false, error: 'Window not available or not in interview mode' };
       } catch (error: any) {
         return { success: false, error: error.message };
       }
