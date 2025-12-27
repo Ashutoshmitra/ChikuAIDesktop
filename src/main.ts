@@ -448,9 +448,9 @@ class ChikuDesktopApp {
     // Recreate as frameless transparent overlay
     this.mainWindow.destroy();
     this.mainWindow = new BrowserWindow({
-      width: 1200,
+      width: 850,
       height: 120,
-      x: screenWidth - 1200 - margin,
+      x: screenWidth - 850 - margin,
       y: margin,
       frame: false,
       transparent: true,
@@ -474,6 +474,9 @@ class ChikuDesktopApp {
 
     // Load the renderer
     this.mainWindow.loadFile(path.join(__dirname, 'index.html'));
+
+    // Open dev tools for debugging interview mode
+    this.mainWindow.webContents.openDevTools();
 
     // Handle close event
     this.mainWindow.on('closed', () => {
@@ -685,7 +688,7 @@ class ChikuDesktopApp {
     this.aiResponseWindow = new BrowserWindow({
       width: 500,
       height: 600,
-      x: screenWidth - 500 - margin - 1200 - margin, // Position to the left of main interview window
+      x: screenWidth - 500 - margin - 850 - margin, // Position to the left of main interview window
       y: margin,
       frame: false,
       transparent: true,

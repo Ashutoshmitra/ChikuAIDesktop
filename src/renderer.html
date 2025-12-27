@@ -1054,79 +1054,167 @@
         }
 
         .interview-header {
-            background: rgba(255, 255, 255, 0.1);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 12px 20px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+            border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+            padding: 8px 12px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             cursor: move;
             -webkit-app-region: drag;
-            border-radius: 8px 8px 0 0;
+            border-radius: 10px 10px 0 0;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 10000;
         }
-
-        .interview-header-left {
+        .interview-header-content {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 6px 10px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
             -webkit-app-region: no-drag;
+            margin: 0 auto;
+            width: fit-content;
         }
 
-        .interview-header-center {
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .interview-header-right {
+        /* Interview Branding */
+        .interview-branding {
             display: flex;
             align-items: center;
             gap: 8px;
-            -webkit-app-region: no-drag;
-            flex-wrap: nowrap;
+            margin-right: 12px;
+            padding-right: 12px;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        .interview-control-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 8px 16px;
+        .interview-brand-text {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        /* Settings Menu */
+        .header-settings-menu {
+            position: relative;
+            -webkit-app-region: no-drag;
+            z-index: 100000;
+        }
+        .settings-menu-btn {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 0;
             border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .settings-menu-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .settings-dropdown {
+            position: absolute;
+            bottom: 50px;
+            left: 0;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.8));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            min-width: 280px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(15px);
+            z-index: 99999;
+            display: none;
+        }
+        .settings-dropdown.show {
+            display: block;
+        }
+        .settings-item {
+            margin-bottom: 16px;
+        }
+        .settings-item:last-child {
+            margin-bottom: 0;
+        }
+
+
+        .interview-control-btn {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.06));
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 8px;
             font-size: 13px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
-            min-width: 90px;
+            transition: all 0.3s ease;
+            min-width: 100px;
             text-align: center;
             -webkit-app-region: no-drag;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .interview-control-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.3);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.12));
+            border-color: rgba(255, 255, 255, 0.35);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
         }
 
         .interview-control-btn.active {
             background: #c8894a;
             border-color: #c8894a;
         }
+        .interview-control-btn.icon-only-control {
+            padding: 0;
+            min-width: 36px;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
+        }
 
         /* Status indicator buttons */
         .status-indicator-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: rgba(255, 255, 255, 0.7);
-            padding: 6px 8px;
-            border-radius: 4px;
-            font-size: 10px;
-            font-weight: 500;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: rgba(255, 255, 255, 0.8);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 4px;
-            min-width: 50px;
+            gap: 6px;
+            min-width: 60px;
             justify-content: center;
+            -webkit-app-region: no-drag;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .status-indicator-btn.icon-only {
+            padding: 0;
+            min-width: 36px;
+            width: 36px;
+            height: 36px;
+            border-radius: 6px;
         }
 
         .status-indicator-btn:hover {
@@ -1186,16 +1274,20 @@
         }
 
         .interview-collapse-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+            border: 1px solid rgba(255, 255, 255, 0.15);
             color: white;
-            padding: 8px;
+            padding: 0;
             border-radius: 6px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
+            width: 36px;
+            height: 36px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .interview-collapse-btn:hover {
@@ -1203,26 +1295,46 @@
             border-color: rgba(255, 255, 255, 0.3);
         }
 
+        .interview-drag-handle {
+            color: rgba(255, 255, 255, 0.6);
+            cursor: move;
+            padding: 6px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-app-region: drag;
+            transition: all 0.2s ease;
+        }
+
+        .interview-drag-handle:hover {
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
         .session-timer {
             color: white;
             font-size: 14px;
             font-weight: 600;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 8px 16px;
-            border-radius: 6px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4));
+            padding: 6px 12px;
+            border-radius: 8px;
             text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            width: 90px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            width: 80px;
             font-family: 'Courier New', monospace;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         }
 
         .interview-transcript-bar {
             background: rgba(255, 255, 255, 0.08);
             border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-            padding: 10px 20px;
+            padding: 8px 16px;
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 16px;
             color: white;
             font-size: 13px;
             overflow: hidden;
@@ -1236,6 +1348,7 @@
             align-items: center;
             gap: 10px;
             overflow: hidden;
+            position: relative;
         }
         
         .transcript-label {
@@ -1250,13 +1363,26 @@
         .transcript-text {
             color: white;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             flex: 1;
             font-weight: 400;
             font-size: 13px;
             margin-left: 8px;
-            transition: all 0.3s ease;
+            transition: transform 0.5s ease;
+            will-change: transform;
+            overflow: visible;
+            position: relative;
+        }
+
+        .transcript-text::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 30px;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.9));
+            pointer-events: none;
+            z-index: 1;
         }
         
         .interview-connection-status {
@@ -1640,28 +1766,31 @@
         }
 
         .interview-action-btn {
-            background: rgba(200, 137, 74, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: linear-gradient(135deg, rgba(200, 137, 74, 0.95), rgba(200, 137, 74, 0.8));
+            border: 1px solid rgba(200, 137, 74, 0.6);
             color: white;
-            border-radius: 6px;
-            padding: 6px 10px;
-            font-size: 11px;
-            font-weight: 500;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 5px;
             text-align: center;
             justify-content: center;
             -webkit-app-region: no-drag;
             white-space: nowrap;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 10px rgba(200, 137, 74, 0.2);
         }
 
         .interview-action-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: #c8894a;
-            transform: translateY(-1px);
+            background: linear-gradient(135deg, rgba(200, 137, 74, 1), rgba(200, 137, 74, 0.9));
+            border-color: rgba(200, 137, 74, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(200, 137, 74, 0.3);
         }
 
         .interview-action-btn:active {
@@ -1849,9 +1978,11 @@
             align-items: center;
             gap: 10px;
             padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.05);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
             border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .header-transparency-label {
@@ -1909,9 +2040,11 @@
             align-items: center;
             gap: 10px;
             padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.05);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
             border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             margin-left: 12px;
         }
 
@@ -2411,20 +2544,33 @@
     <!-- Interview Mode Overlay -->
     <div class="interview-overlay" id="interviewOverlay">
         <div class="interview-header">
-            <div class="interview-header-left">
-                <div class="header-transparency-controls">
-                    <span class="header-transparency-label">Opacity</span>
-                    <input 
-                        type="range" 
-                        class="header-transparency-slider" 
-                        id="transparencySlider"
-                        min="10" 
-                        max="100" 
-                        value="95" 
-                        oninput="updateTransparency(this.value)"
-                    >
-                    <span class="header-transparency-value" id="transparencyValue">95%</span>
+            <div class="interview-header-content">
+                
+                <!-- Chiku AI Branding -->
+                <div class="interview-branding">
+                    <div class="logo-small"></div>
+                    <span class="interview-brand-text">Chiku AI</span>
                 </div>
+                
+                <!-- AI Action Buttons -->
+                <button class="interview-action-btn" id="aiAnswerBtnInterview" onclick="handleAIAnswerInterview()" title="Get AI answer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                        <path d="M2 17l10 5 10-5"></path>
+                        <path d="M2 12l10 5 10-5"></path>
+                    </svg>
+                    AI Answer
+                </button>
+                <button class="interview-action-btn" id="analyzeScreenBtnInterview" onclick="handleAnalyzeScreenInterview()" title="Analyze screen content">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <path d="M21 15l-3.086-3.086a2 2 0 00-2.828 0L6 21"></path>
+                    </svg>
+                    Analyze Screen
+                </button>
+
+                <!-- Auto AI Toggle -->
                 <div class="header-auto-ai-toggle">
                     <span class="header-auto-ai-label">Auto AI</span>
                     <label class="auto-ai-switch">
@@ -2432,55 +2578,51 @@
                         <span class="auto-ai-slider"></span>
                     </label>
                 </div>
-            </div>
-            
-            <div class="interview-header-center">Chiku AI</div>
-            
-            <div class="interview-header-right">
-                <!-- AI Action Buttons -->
-                <button class="interview-action-btn" id="aiAnswerBtnInterview" onclick="handleAIAnswerInterview()" title="Get AI answer">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M9 12l2 2 4-4"></path>
-                        <path d="M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                    </svg>
-                    AI Answer
-                </button>
-                <button class="interview-action-btn" id="analyzeScreenBtnInterview" onclick="handleAnalyzeScreenInterview()" title="Analyze screen content">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                    Analyze Screen
-                </button>
                 
-                <!-- Microphone Status Button -->
-                <button class="status-indicator-btn" id="micStatusBtn" onclick="toggleMicrophone()" title="Toggle microphone">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4z"></path>
+                <!-- Status Indicators -->
+                <button class="status-indicator-btn icon-only" id="micStatusBtn" onclick="toggleMicrophone()" title="Microphone: OFF">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a4 4 0 0 0-4 4v6a4 4 0 0 0 8 0V5a4 4 0 0 0-4-4z"></path>
                         <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                         <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
                     </svg>
-                    <span id="micStatusText">OFF</span>
                 </button>
                 
-                <!-- Screen Share Status Button -->
-                <button class="status-indicator-btn" id="screenStatusBtn" onclick="toggleScreenShare()" title="Toggle screen share">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="2" y="4" width="20" height="12" rx="2"></rect>
-                        <line x1="12" y1="16" x2="12" y2="20"></line>
-                        <line x1="8" y1="20" x2="16" y2="20"></line>
+                <button class="status-indicator-btn icon-only" id="screenStatusBtn" onclick="toggleScreenShare()" title="Screen Share: OFF">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                        <line x1="8" y1="21" x2="16" y2="21"></line>
+                        <line x1="12" y1="17" x2="12" y2="21"></line>
+                        <path d="M8 9l3 3 6-6"></path>
                     </svg>
-                    <span id="screenStatusText">OFF</span>
                 </button>
                 
+                <!-- Controls -->
                 <button class="interview-collapse-btn" onclick="collapseToLogo()" title="Minimize to logo">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M6 9l6 6 6-6"/>
                     </svg>
                 </button>
-                <button class="interview-control-btn stop-session-btn" id="stopSessionBtn" onclick="stopInterviewSession()">
-                    <span>■</span> Stop
+
+                <!-- Drag Handle -->
+                <div class="interview-drag-handle" title="Drag to move window">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="9" cy="12" r="1"></circle>
+                        <circle cx="9" cy="5" r="1"></circle>
+                        <circle cx="9" cy="19" r="1"></circle>
+                        <circle cx="15" cy="12" r="1"></circle>
+                        <circle cx="15" cy="5" r="1"></circle>
+                        <circle cx="15" cy="19" r="1"></circle>
+                    </svg>
+                </div>
+                
+                <button class="interview-control-btn stop-session-btn icon-only-control" id="stopSessionBtn" onclick="stopInterviewSession()" title="Stop Session">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                        <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"></rect>
+                    </svg>
                 </button>
+                
                 <div class="session-timer" id="sessionTimerInterview">10:00</div>
             </div>
         </div>
@@ -2492,7 +2634,7 @@
                 <span id="statusText">Initializing...</span>
             </div>
             <div class="interview-transcript-display" id="interviewTranscriptDisplay">
-                <span class="transcript-label">Latest:</span>
+                <span class="transcript-label">Transcript:</span>
                 <span class="transcript-text" id="latestTranscriptText">Waiting for speech...</span>
             </div>
         </div>
@@ -3702,6 +3844,17 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                     transcriptState.isConnected = true;
                     transcriptState.isRecording = true;
                     updateConnectionStatus('connected', 'Connected - Start speaking!');
+                    
+                    // Initialize flowing transcript
+                    flowingTranscriptSentences = [];
+                    currentTransform = 0;
+                    
+                    // Reset transcript label visibility
+                    const transcriptLabel = document.querySelector('.transcript-label');
+                    if (transcriptLabel) {
+                        transcriptLabel.style.display = 'block';
+                    }
+                    
                     startAudioProcessing();
                     
                     // Hide status after a delay to show transcripts
@@ -4242,18 +4395,76 @@ IMPORTANT:
             updateCompactTranscriptDisplay(text, isPartial);
         }
         
+        // Array to store flowing transcript sentences
+        let flowingTranscriptSentences = [];
+        let currentTransform = 0;
+        
         function updateCompactTranscriptDisplay(text, isPartial = false) {
             const latestTranscriptText = document.getElementById('latestTranscriptText');
-            if (latestTranscriptText && text && text.trim()) {
-                if (isPartial) {
-                    // Show partial transcript in blue with blinking cursor
-                    latestTranscriptText.innerHTML = text + '<span style="color: #3b82f6; animation: blink 1s infinite;">|</span>';
-                    latestTranscriptText.style.color = '#3b82f6'; // Blue color for partial text
-                } else {
-                    // Show final transcript in white
-                    latestTranscriptText.innerHTML = text;
-                    latestTranscriptText.style.color = 'white';
+            const transcriptLabel = document.querySelector('.transcript-label');
+            if (!latestTranscriptText) return;
+            
+            if (text && text.trim()) {
+                // Hide transcript label when first words appear
+                if (transcriptLabel) {
+                    transcriptLabel.style.display = 'none';
                 }
+                
+                if (isPartial) {
+                    // For partial text, show it with the accumulated sentences and apply real-time flow
+                    const allText = [...flowingTranscriptSentences, text].join(' ');
+                    latestTranscriptText.innerHTML = allText + '<span style="color: #3b82f6; animation: blink 1s infinite;">|</span>';
+                    latestTranscriptText.style.color = 'rgba(255, 255, 255, 0.9)';
+                    
+                    // Apply real-time flowing for partial text too
+                    applyFlowingEffect(latestTranscriptText, allText);
+                } else {
+                    // For final text, add to flowing sentences
+                    if (text.trim() && !flowingTranscriptSentences.includes(text.trim())) {
+                        flowingTranscriptSentences.push(text.trim());
+                        
+                        const allText = flowingTranscriptSentences.join(' ');
+                        latestTranscriptText.innerHTML = allText;
+                        latestTranscriptText.style.color = 'white';
+                        
+                        applyFlowingEffect(latestTranscriptText, allText);
+                    }
+                }
+            }
+        }
+
+        function applyFlowingEffect(textElement, textContent) {
+            // Check if text overflows and needs scrolling
+            const container = textElement.parentElement;
+            const containerWidth = container.offsetWidth - 50; // Account for spacing
+            const textWidth = textElement.scrollWidth;
+            
+            if (textWidth > containerWidth) {
+                // Calculate how much to scroll to keep latest text visible
+                const overflow = textWidth - containerWidth;
+                currentTransform = -overflow;
+                textElement.style.transform = `translateX(${currentTransform}px)`;
+                
+                // Remove older sentences if getting too long (only for final sentences)
+                if (!textContent.includes('|') && flowingTranscriptSentences.length > 5) {
+                    flowingTranscriptSentences.shift();
+                    // Recalculate with shorter text
+                    const newText = flowingTranscriptSentences.join(' ');
+                    textElement.innerHTML = newText;
+                    const newTextWidth = textElement.scrollWidth;
+                    if (newTextWidth > containerWidth) {
+                        const newOverflow = newTextWidth - containerWidth;
+                        currentTransform = -newOverflow;
+                        textElement.style.transform = `translateX(${currentTransform}px)`;
+                    } else {
+                        currentTransform = 0;
+                        textElement.style.transform = 'translateX(0px)';
+                    }
+                }
+            } else {
+                // Reset transform if text fits
+                currentTransform = 0;
+                textElement.style.transform = 'translateX(0px)';
             }
         }
 
@@ -4397,7 +4608,7 @@ IMPORTANT:
         async function resizeInterviewWindow(newHeight) {
             // Send resize request to main process
             try {
-                await window.electronAPI.resizeInterviewWindow(1200, newHeight);
+                await window.electronAPI.resizeInterviewWindow(850, newHeight);
             } catch (error) {
                 console.error('Failed to resize window:', error);
             }
@@ -4754,6 +4965,25 @@ IMPORTANT:
                 // Debug logging disabled
             }
         }
+        
+        // Settings Menu Toggle
+        function toggleSettingsMenu() {
+            const dropdown = document.getElementById('settingsDropdown');
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+        }
+        
+        // Close settings menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const menu = document.querySelector('.header-settings-menu');
+            const dropdown = document.getElementById('settingsDropdown');
+            
+            if (dropdown && dropdown.classList.contains('show') && 
+                menu && !menu.contains(event.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
 
         // Initialize Auto AI toggle state when entering interview mode
         function initializeAutoAIToggle() {
@@ -4774,7 +5004,9 @@ IMPORTANT:
         // Transparency control functions
         function updateTransparency(value) {
             const transparencyValue = document.getElementById('transparencyValue');
-            transparencyValue.textContent = value + '%';
+            if (transparencyValue) {
+                transparencyValue.textContent = value + '%';
+            }
             
             // Convert percentage to opacity (0.1 to 1.0)
             const opacity = value / 100;
@@ -4798,6 +5030,7 @@ IMPORTANT:
                 value.textContent = '95%';
                 // Don't call updateTransparency here - let it be applied manually
             }
+            // If transparency controls don't exist, just skip initialization
         }
 
         // Panel resize functionality
@@ -4886,24 +5119,20 @@ IMPORTANT:
         function updateMicrophoneStatus(isOn) {
             isMicrophoneOn = isOn;
             const micBtn = document.getElementById('micStatusBtn');
-            const micText = document.getElementById('micStatusText');
             
-            if (!micBtn || !micText) return;
+            if (!micBtn) return;
             
             micBtn.classList.remove('active', 'inactive', 'denied');
             
             if (!actualMicrophonePermission) {
                 // Permission denied
                 micBtn.classList.add('denied');
-                micText.textContent = 'DENIED';
                 micBtn.title = 'Microphone: Permission denied (click to request permission)';
             } else if (isOn) {
                 micBtn.classList.add('active');
-                micText.textContent = 'ON';
                 micBtn.title = 'Microphone: ON (click to mute)';
             } else {
                 micBtn.classList.add('inactive');
-                micText.textContent = 'OFF';
                 micBtn.title = 'Microphone: OFF (click to unmute)';
             }
         }
@@ -4911,24 +5140,20 @@ IMPORTANT:
         function updateScreenShareStatus(isOn) {
             isScreenShareOn = isOn;
             const screenBtn = document.getElementById('screenStatusBtn');
-            const screenText = document.getElementById('screenStatusText');
             
-            if (!screenBtn || !screenText) return;
+            if (!screenBtn) return;
             
             screenBtn.classList.remove('active', 'inactive', 'denied');
             
             if (!actualScreenSharePermission) {
                 // Permission denied
                 screenBtn.classList.add('denied');
-                screenText.textContent = 'DENIED';
                 screenBtn.title = 'Screen Share: Permission denied (click to request permission)';
             } else if (isOn) {
                 screenBtn.classList.add('active');
-                screenText.textContent = 'ON';
                 screenBtn.title = 'Screen Share: ON (click to stop)';
             } else {
                 screenBtn.classList.add('inactive');
-                screenText.textContent = 'OFF';
                 screenBtn.title = 'Screen Share: OFF (click to start)';
             }
         }
