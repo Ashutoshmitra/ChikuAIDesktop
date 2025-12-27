@@ -670,11 +670,14 @@ class ChikuDesktopApp {
   
   private async endCurrentSession() {
     if (this.currentSessionId && this.sessionStartTime) {
-      const elapsed = Math.floor((new Date().getTime() - this.sessionStartTime.getTime()) / 1000 / 60); // minutes
+      const elapsedSeconds = Math.floor((new Date().getTime() - this.sessionStartTime.getTime()) / 1000); // seconds
+      const elapsedMinutes = Math.floor(elapsedSeconds / 60); // minutes
+      // Ensure minimum 1 minute to satisfy webapp backend validation
+      const minutesToSend = Math.max(1, elapsedMinutes);
       
       try {
         // Update session in database and user's remaining minutes
-        await this.updateSessionMinutes(this.currentSessionId, elapsed);
+        await this.updateSessionMinutes(this.currentSessionId, minutesToSend, elapsedSeconds);
       } catch (error) {
         // Debug auth errors in packaged app
         if (app.isPackaged && error.message && error.message.includes('401')) {
@@ -692,31 +695,26 @@ class ChikuDesktopApp {
     this.transformToDashboardMode();
   }
   
-  private async updateSessionMinutes(sessionId: string, minutesUsed: number) {
+  private async updateSessionMinutes(sessionId: string, minutesUsed: number, durationSeconds?: number) {
     try {
-      // Only update if we actually have minutes used (webapp doesn't accept 0)
-      if (minutesUsed > 0) {
-        if (app.isPackaged) {
-          console.log(`[PACKAGED DEBUG] Updating session: ${sessionId}, minutes: ${minutesUsed}`);
-        }
-        
-        await this.makeAuthenticatedRequest('/api/desktop-sessions/update', {
-          method: 'POST',
-          body: JSON.stringify({
-            sessionId,
-            minutesUsed,
-            endedAt: new Date().toISOString(),
-            status: 'completed'
-          })
-        });
-        
-        if (app.isPackaged) {
-          console.log('[PACKAGED DEBUG] Session update successful');
-        }
-      } else {
-        if (app.isPackaged) {
-          console.log('[PACKAGED DEBUG] No minutes used, skipping session update');
-        }
+      // Always update session status and endTime, regardless of minutes used
+      if (app.isPackaged) {
+        console.log(`[PACKAGED DEBUG] Updating session: ${sessionId}, minutes: ${minutesUsed}, duration: ${durationSeconds}s`);
+      }
+      
+      await this.makeAuthenticatedRequest('/api/desktop-sessions/update', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          minutesUsed,
+          duration: durationSeconds, // Send actual duration in seconds for display
+          endedAt: new Date().toISOString(),
+          status: 'completed'
+        })
+      });
+      
+      if (app.isPackaged) {
+        console.log('[PACKAGED DEBUG] Session update successful');
       }
     } catch (error: any) {
       // Handle specific error cases

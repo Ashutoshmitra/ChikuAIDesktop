@@ -3474,8 +3474,8 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
                                     } else {
                                     }
                                     
-                                    // Save transcript to database (but don't block on errors)
-                                    if (currentInterviewSessionData?.sessionId) {
+                                    // Save complete transcript periodically (every 5 turns to avoid excessive saves)
+                                    if (currentInterviewSessionData?.sessionId && currentTranscripts.length % 5 === 0) {
                                         const fullTranscript = currentTranscripts.map(t => t.text).join(' ');
                                         window.electronAPI.saveTranscript(currentInterviewSessionData.sessionId, fullTranscript)
                                             .catch(error => {
@@ -3619,6 +3619,15 @@ Other Experience: ${JSON.stringify(currentResumeData.otherExperience) || 'Not pr
             try {
                 // Stop transcription
                 stopTranscription();
+                
+                // Save final complete transcript before ending session
+                if (currentInterviewSessionData?.sessionId && currentTranscripts.length > 0) {
+                    const fullTranscript = currentTranscripts.map(t => t.text).join(' ');
+                    await window.electronAPI.saveTranscript(currentInterviewSessionData.sessionId, fullTranscript)
+                        .catch(error => {
+                            console.error('Failed to save final transcript:', error);
+                        });
+                }
                 
                 // End interview session (restore to dashboard)
                 const result = await window.electronAPI.endInterviewSession();
