@@ -352,9 +352,6 @@ class ChikuDesktopApp {
     this.mainWindow.loadFile(path.join(__dirname, 'index.html'));
     
     const isDev = !app.isPackaged;
-    if (isDev) {
-      this.mainWindow.webContents.openDevTools();
-    }
 
     // Add ready event listener for packaged app debugging
     this.mainWindow.webContents.once('dom-ready', () => {
@@ -448,9 +445,9 @@ class ChikuDesktopApp {
     // Recreate as frameless transparent overlay
     this.mainWindow.destroy();
     this.mainWindow = new BrowserWindow({
-      width: 850,
+      width: 750,
       height: 120,
-      x: screenWidth - 850 - margin,
+      x: screenWidth - 750 - margin,
       y: margin,
       frame: false,
       transparent: true,
@@ -474,9 +471,6 @@ class ChikuDesktopApp {
 
     // Load the renderer
     this.mainWindow.loadFile(path.join(__dirname, 'index.html'));
-
-    // Open dev tools for debugging interview mode
-    this.mainWindow.webContents.openDevTools();
 
     // Handle close event
     this.mainWindow.on('closed', () => {
@@ -581,9 +575,7 @@ class ChikuDesktopApp {
               elapsed: Math.floor((Date.now() - this.sessionStartTime.getTime()) / 1000 / 60),
               remaining: remainingMinutes,
               remainingSeconds: this.currentRemainingSeconds,
-              display: userTier === 'free' ? 
-                `${remainingMinutes}:${remainingSecs.toString().padStart(2, '0')}` :
-                `${remainingMinutes}:${remainingSecs.toString().padStart(2, '0')} left`
+              display: `${remainingMinutes}:${remainingSecs.toString().padStart(2, '0')}`
             };
             
             this.mainWindow.webContents.send('session-timer-update', timerData);
@@ -688,7 +680,7 @@ class ChikuDesktopApp {
     this.aiResponseWindow = new BrowserWindow({
       width: 500,
       height: 600,
-      x: screenWidth - 500 - margin - 850 - margin, // Position to the left of main interview window
+      x: screenWidth - 500 - margin - 750 - margin, // Position to the left of main interview window
       y: margin,
       frame: false,
       transparent: true,

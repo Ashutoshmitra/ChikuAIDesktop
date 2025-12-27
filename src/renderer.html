@@ -1056,7 +1056,7 @@
         .interview-header {
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
             border-bottom: 1px solid rgba(255, 255, 255, 0.25);
-            padding: 8px 12px;
+            padding: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1071,13 +1071,13 @@
         .interview-header-content {
             display: flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 6px 10px;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 6px 11px;
             border-radius: 8px;
             backdrop-filter: blur(5px);
             -webkit-app-region: no-drag;
-            margin: 0 auto;
+            margin: 0;
             width: fit-content;
         }
 
@@ -1085,9 +1085,9 @@
         .interview-branding {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-right: 12px;
-            padding-right: 12px;
+            gap: 6px;
+            margin-right: 8px;
+            padding-right: 8px;
             border-right: 1px solid rgba(255, 255, 255, 0.2);
         }
 
@@ -1316,25 +1316,29 @@
             color: white;
             font-size: 14px;
             font-weight: 600;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4));
-            padding: 6px 12px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 0 12px;
             border-radius: 8px;
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.25);
             width: 80px;
+            height: 36px;
             font-family: 'Courier New', monospace;
             backdrop-filter: blur(5px);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .interview-transcript-bar {
             background: rgba(255, 255, 255, 0.08);
             border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-            padding: 8px 16px;
+            padding: 6px 8px;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             color: white;
             font-size: 13px;
             overflow: hidden;
@@ -1766,8 +1770,8 @@
         }
 
         .interview-action-btn {
-            background: linear-gradient(135deg, rgba(200, 137, 74, 0.95), rgba(200, 137, 74, 0.8));
-            border: 1px solid rgba(200, 137, 74, 0.6);
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             color: white;
             border-radius: 8px;
             padding: 6px 12px;
@@ -1783,14 +1787,14 @@
             -webkit-app-region: no-drag;
             white-space: nowrap;
             backdrop-filter: blur(5px);
-            box-shadow: 0 2px 10px rgba(200, 137, 74, 0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         }
 
         .interview-action-btn:hover {
-            background: linear-gradient(135deg, rgba(200, 137, 74, 1), rgba(200, 137, 74, 0.9));
-            border-color: rgba(200, 137, 74, 0.8);
+            background: rgba(0, 0, 0, 0.9);
+            border-color: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(200, 137, 74, 0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
 
         .interview-action-btn:active {
@@ -2038,14 +2042,14 @@
         .header-auto-ai-toggle {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 16px;
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04));
+            gap: 6px;
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.8);
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(5px);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            margin-left: 12px;
+            margin-left: 8px;
         }
 
         .header-auto-ai-label {
@@ -4436,10 +4440,20 @@ IMPORTANT:
         function applyFlowingEffect(textElement, textContent) {
             // Check if text overflows and needs scrolling
             const container = textElement.parentElement;
-            const containerWidth = container.offsetWidth - 50; // Account for spacing
+            const containerWidth = container.offsetWidth - 80; // Account for spacing and fade
             const textWidth = textElement.scrollWidth;
             
-            if (textWidth > containerWidth) {
+            // Only apply transform if text actually overflows by a significant amount
+            const overflowThreshold = 60; // Much larger threshold to prevent early scrolling
+            
+            // Don't scroll at all if we have very little content
+            if (textContent.length < 50) {
+                currentTransform = 0;
+                textElement.style.transform = 'translateX(0px)';
+                return;
+            }
+            
+            if (textWidth > containerWidth + overflowThreshold) {
                 // Calculate how much to scroll to keep latest text visible
                 const overflow = textWidth - containerWidth;
                 currentTransform = -overflow;
@@ -4452,7 +4466,7 @@ IMPORTANT:
                     const newText = flowingTranscriptSentences.join(' ');
                     textElement.innerHTML = newText;
                     const newTextWidth = textElement.scrollWidth;
-                    if (newTextWidth > containerWidth) {
+                    if (newTextWidth > containerWidth + overflowThreshold) {
                         const newOverflow = newTextWidth - containerWidth;
                         currentTransform = -newOverflow;
                         textElement.style.transform = `translateX(${currentTransform}px)`;
@@ -4462,7 +4476,7 @@ IMPORTANT:
                     }
                 }
             } else {
-                // Reset transform if text fits
+                // Reset transform if text fits comfortably
                 currentTransform = 0;
                 textElement.style.transform = 'translateX(0px)';
             }
@@ -4608,7 +4622,7 @@ IMPORTANT:
         async function resizeInterviewWindow(newHeight) {
             // Send resize request to main process
             try {
-                await window.electronAPI.resizeInterviewWindow(850, newHeight);
+                await window.electronAPI.resizeInterviewWindow(750, newHeight);
             } catch (error) {
                 console.error('Failed to resize window:', error);
             }
